@@ -1,0 +1,181 @@
+{
+  "name": "code",
+  "description": "言語に関係しないコードの型：仕事をせずに成功を返す・エラーを握りつぶす・測らずに点数を出す・認証を素通りさせる。目印の言葉は日本語と英語の両方。",
+  "rules": [
+    {
+      "id": "stub-success",
+      "kind": "偽の成功",
+      "pattern": "\\b(return|resolve|res\\.json|res\\.send|json|send)\\b[^;\\n]*\\b(ok|success|succeeded|passed|verified|sent|saved)['\"]?\\s*:\\s*true\\b|\\b(return|json|send)\\b[^;\\n]*\\b(status|result)\\s*:\\s*['\"](done|ok|success|sent|completed|完了|成功|送信済み)['\"]",
+      "flags": "i",
+      "scope": "line",
+      "near": "TODO|FIXME|XXX|\\bstub\\b|placeholder|not implemented|for now|temporar|dummy|\\bfake\\b|(?<![\\u4e00-\\u9fff])仮(?![\\u4e00-\\u9fff])|後で|あとで|未実装|とりあえず|ダミー|見せる|(する|した)ふり|ふりをする",
+      "window": [
+        4,
+        0
+      ],
+      "message": "未実装・仮の印のすぐ近くで「成功」を返しています（仕事をせずに成功と言っている疑い）。",
+      "fix": "実装するまでは失敗（例: { ok: false, error: '未実装' } や 501）を返す。",
+      "notNear": "await\\s+(?!new\\s+Promise|sleep|delay|wait)[\\w.]+\\(|\\.write\\w*\\(|\\.save\\(|\\.insert\\(|fetch\\("
+    },
+    {
+      "id": "stub-return-literal",
+      "kind": "偽の成功",
+      "pattern": "\\breturn\\s*\\{[^}]*\\}",
+      "scope": "line",
+      "flags": "i",
+      "near": "(とりあえず|仮の?値|固定|ダミー|dummy|hard-?coded|for now|placeholder)",
+      "notNear": "await\\s+(?!new\\s+Promise|sleep|delay|wait)[\\w.]+\\(|\\.write\\w*\\(|\\.save\\(|\\.insert\\(|fetch\\(",
+      "window": [
+        1,
+        0
+      ],
+      "message": "仮・固定の印のそばで、作った値をそのまま返しています。",
+      "fix": "本当の結果を返す。まだなら「未実装」と分かる失敗を返す。"
+    },
+    {
+      "id": "stub-true",
+      "kind": "偽の成功",
+      "pattern": "^\\s*return\\s+(true|!0)\\s*;?|=>\\s*true\\s*;?\\s*(//.*)?$",
+      "scope": "line",
+      "near": "TODO|FIXME|XXX|\\bstub\\b|placeholder|not implemented|for now|temporar|dummy|\\bfake\\b|(?<![\\u4e00-\\u9fff])仮(?![\\u4e00-\\u9fff])|後で|あとで|未実装|とりあえず|ダミー",
+      "flags": "i",
+      "window": [
+        2,
+        0
+      ],
+      "message": "仮の印のそばで true を固定で返しています。",
+      "fix": "本当の判定を書くか、実装するまでは false／例外にする。"
+    },
+    {
+      "id": "check-always-true",
+      "kind": "偽の成功",
+      "pattern": "\\b(verify|validate|authorize|authenticate|checkAuth|checkPermission|isAdmin|isAuthorized|isAuthenticated|isAllowed|canAccess|hasPermission)\\w*\\s*(\\([^)]*\\)|=\\s*(async\\s*)?\\([^)]*\\)\\s*=>)\\s*(:\\s*[\\w<>]+\\s*)?\\{\\s*return\\s+true\\s*;?\\s*(//[^\\n]*)?\\s*\\}",
+      "scope": "file",
+      "message": "確認・認証の関数が、何も調べずに常に true を返しています。",
+      "fix": "本当に調べる。まだなら false を返す（安全側に倒す）。"
+    },
+    {
+      "id": "check-arrow-true",
+      "kind": "偽の成功",
+      "pattern": "\\b(is|can|has|check|verify|validate)(LoggedIn|Admin|Auth\\w*|Allowed|Owner|Permission\\w*|Access|License\\w*|Paid)\\s*=\\s*(async\\s*)?\\([^)]*\\)\\s*=>\\s*true\\b",
+      "scope": "line",
+      "message": "確認の関数が、何も調べずに常に true を返しています。",
+      "fix": "本当に調べる。まだなら false を返す（安全側に倒す）。"
+    },
+    {
+      "id": "log-instead-of-action",
+      "kind": "偽の成功",
+      "pattern": "(console\\.(log|info)|toast\\w*|alert|notify|showToast|setMessage|message\\.success)\\(\\s*['\"`][^'\"`]*(送信しました|保存しました|登録しました|完了しました|支払いました|予約しました|送りました|\\bsent\\b|\\bsaved\\b|\\buploaded\\b|\\bcharged\\b)",
+      "flags": "i",
+      "scope": "line",
+      "notNear": "await|\\.send\\(|\\.save\\(|\\.insert\\(|\\.write|fetch\\(|axios|\\.create\\(|commit\\(|sendMail|transporter|\\.then\\(|\\bres\\.ok\\b|\\.ok\\s*\\)|addApproval|set[A-Z]\\w*\\(",
+      "window": [
+        8,
+        1
+      ],
+      "message": "「〜しました」と記録していますが、近くに実際の処理（送信・保存の呼び出し）が見当たりません。",
+      "fix": "本当に処理してから記録する。処理の結果を見て成功・失敗を出し分ける。"
+    },
+    {
+      "id": "fake-delay",
+      "kind": "偽の成功",
+      "pattern": "(setTimeout\\(\\s*\\w*\\s*,|\\bsleep\\(|\\bdelay\\(|\\bwait\\()\\s*\\d{3,}",
+      "scope": "line",
+      "near": "(status|ok|success|done)['\"]?\\s*:\\s*(true|['\"](done|ok|success|completed|完了)['\"])|setStatus\\(\\s*['\"](done|完了|成功)|見せる|(する|した)ふり",
+      "notNear": "retry|backoff|attempt|再試行|リトライ|poll|ポーリング|rate.?limit|debounce|throttle|await\\s+(?!new\\s+Promise|sleep|delay|wait)[\\w.]+\\(|\\.write\\w*\\(|\\.save\\(|\\.insert\\(|fetch\\(",
+      "flags": "i",
+      "window": [
+        1,
+        3
+      ],
+      "message": "待つだけで「完了」を出しています（処理しているように見せる疑い）。",
+      "fix": "本当の処理の終わりを待って結果を出す。待つ理由（再試行など）があるならコメントか免除で明示。"
+    },
+    {
+      "id": "mock-in-prod",
+      "kind": "偽の成功",
+      "pattern": "\\breturn\\s+(MOCK|FAKE|DUMMY|STUB)_\\w+|\\breturn\\s+(mock|fake|dummy|stub)[A-Z]\\w*",
+      "scope": "line",
+      "message": "本番のコードで、作り物のデータ（mock/fake/dummy）を返しています。",
+      "fix": "本物のデータを返す。デモ用なら、画面にデモと分かる表示を出し、設定で切り替える。"
+    },
+    {
+      "id": "empty-catch",
+      "kind": "握りつぶし",
+      "pattern": "\\bcatch\\s*(\\(\\s*[^)]*\\))?\\s*\\{(\\s|/\\*\\s*\\*/)*\\}",
+      "scope": "file",
+      "message": "空の catch。エラーが起きても誰にも分かりません。",
+      "fix": "記録（ログ）する・投げ直す・利用者に失敗を伝える。わざと無視するなら、なぜ無視してよいかを catch の中にコメントで書く。 localStorage を包む try は対象外（非公開モードで投げるため。数は debt の emptyCatch に残る）。",
+      "unless": "localStorage|sessionStorage"
+    },
+    {
+      "id": "promise-catch-noop",
+      "kind": "握りつぶし",
+      "pattern": "\\.catch\\(\\s*(\\(\\s*\\w*\\s*\\)|\\w+)\\s*=>\\s*(\\{\\s*\\}|undefined|void 0)\\s*\\)|\\.catch\\(\\s*(async\\s+)?function\\s*\\w*\\s*\\([^)]*\\)\\s*\\{\\s*\\}\\s*\\)|\\.on\\(\\s*['\"](error|uncaughtException|unhandledRejection)['\"]\\s*,\\s*\\(?\\s*\\w*\\s*\\)?\\s*=>\\s*\\{\\s*\\}\\s*\\)",
+      "scope": "line",
+      "unless": "\\)\\s*;?\\s*//\\s*\\S{4,}",
+      "message": ".catch(() => {}) でエラーを捨てています。",
+      "fix": "記録する・失敗を伝える。わざとなら同じ行に理由のコメントを書く。"
+    },
+    {
+      "id": "catch-returns-success",
+      "kind": "握りつぶし",
+      "pattern": "\\bcatch\\s*(\\([^)]*\\))?\\s*\\{\\s*(//[^\\n]*\\s*)?return\\s*(\\{\\s*(ok|success)\\s*:\\s*true|true\\b)",
+      "scope": "file",
+      "message": "失敗したのに成功を返しています（catch の中で ok: true）。",
+      "fix": "catch では失敗を返す（ok: false とエラーの理由）。"
+    },
+    {
+      "id": "catch-returns-empty",
+      "kind": "握りつぶし",
+      "pattern": "\\bcatch\\s*(\\([^)]*\\))?\\s*\\{\\s*return\\s*(\\[\\s*\\]|\\{\\s*\\}|0)\\s*;?\\s*\\}",
+      "scope": "file",
+      "message": "失敗したときに「空（データ 0 件）」を返しています。失敗と「本当に 0 件」の区別がつきません。",
+      "fix": "失敗を投げ直すか、失敗と分かる値（{ ok: false, error }）を返す。"
+    },
+    {
+      "id": "hardcoded-score",
+      "kind": "固定の点数",
+      "pattern": "\\b(score|[a-z]+Score|accuracy|confidence|precision|successRate|percentage|percent)\\s*:\\s*(?!0(\\.0+)?(?![\\d.]))\\d+(\\.\\d+)?\\s*[,}\\n]?",
+      "scope": "line",
+      "unless": "\\b(min|max|threshold|pass|target|goal|limit|default|weights?)([A-Z]\\w*)?\\s*[:=]|閾値|合格|目標|しきい値|^\\s*(//|\\*|/\\*)",
+      "message": "点数・精度を数字で書き込んでいます（測らずに出している疑い）。",
+      "fix": "実際の信号から計算して出す。合格線などの設定値なら、名前に min/threshold などを付けるか免除する。"
+    },
+    {
+      "id": "score-func-constant",
+      "kind": "固定の点数",
+      "pattern": "\\b\\w*(score|Score|rating|Rating|accuracy|Accuracy)\\w*\\s*(\\([^)]*\\)|=\\s*(async\\s*)?\\([^)]*\\)\\s*=>)\\s*(:\\s*\\w+\\s*)?\\{\\s*return\\s+\\d+(\\.\\d+)?\\s*;?\\s*\\}",
+      "scope": "file",
+      "message": "点数を計算する関数が、いつも同じ数字を返しています。",
+      "fix": "入力から計算する。まだなら『未計測』と分かる値（null など）を返す。"
+    },
+    {
+      "id": "fixed-percent-claim",
+      "kind": "固定の点数",
+      "pattern": "(精度|正答率|正解率|成功率|満足度|的中率|accuracy|success rate)\\s*[:：はが]?\\s*(?!0)\\d{2,3}(\\.\\d+)?\\s*[%％]",
+      "flags": "i",
+      "scope": "line",
+      "message": "精度・成功率を固定の数字で画面に出しています。",
+      "fix": "測った値を、測った日・件数と一緒に出す（例: 『30問中30合格（11/11 時点）』）。"
+    },
+    {
+      "id": "demo-user",
+      "kind": "偽の認証",
+      "pattern": "['\"`](demo|test|dummy|fake|guest)[-_]?user([-_]?id)?['\"`]|\\|\\|\\s*['\"`](admin|root)['\"`]|(\\?\\?|\\|\\|)\\s*\\{[^}]*role\\s*:\\s*['\"](admin|owner)['\"]",
+      "flags": "i",
+      "scope": "line",
+      "message": "ログインしていない人を、作り物の利用者（demo-user 等）として通しています。",
+      "fix": "ログインが無ければ 401 を返す。"
+    },
+    {
+      "id": "no-token-admin",
+      "kind": "偽の認証",
+      "pattern": "if\\s*\\(\\s*!\\s*[\\w.]*(token|auth|session|user)\\w*\\s*\\)\\s*\\{?\\s*(req\\.)?user\\s*=\\s*\\{[^}]*(admin|role)",
+      "flags": "i",
+      "scope": "file",
+      "message": "鍵（トークン）が無いときに、管理者として通しています。",
+      "fix": "鍵が無ければ 401 を返す。"
+    }
+  ]
+}

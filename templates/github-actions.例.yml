@@ -1,0 +1,35 @@
+# 手抜き番を、GitHub の上でも回す見本（このファイルは見本です。まだどこにも上げていません）。
+# 置き場所: リポジトリの .github/workflows/tenukiban.yml
+#
+# ・PR（変更の提案）のたびに、本流（main など）の基準と比べます。
+#   AI が手元で基準ファイルや控えを書き換えても、本流の基準と比べれば分かります（いちばん強い比べ方）。
+# ・CI では基準も控えも書きません（読むだけ）。
+# ・手抜き番は npm にまだ公開していません。公開するまでは、リポジトリの中（例: tools/tenukiban/）に写して使います。
+# ・このファイル自体も手抜き番が守っています（変えると「設定ファイルが書き換えられた」と止まります）。
+name: tenukiban
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 本流の基準と比べるため、履歴を全部取る
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # 依存の部品は入れなくても動きます（手抜き番は Node だけで動く）。
+      - name: 手抜き番（PR は本流と比べる）
+        if: github.event_name == 'pull_request'
+        run: node tools/tenukiban/bin/tenukiban.mjs check --ci --base "origin/${{ github.base_ref }}"
+      - name: 手抜き番（main への push）
+        if: github.event_name == 'push'
+        run: node tools/tenukiban/bin/tenukiban.mjs check --ci

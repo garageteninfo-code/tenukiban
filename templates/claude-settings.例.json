@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "npx tenukiban check --hook", "timeout": 180 }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(npx tenukiban accept *)",
+      "Bash(tenukiban accept *)",
+      "PowerShell(npx tenukiban accept *)",
+      "PowerShell(tenukiban accept *)",
+      "Edit(/.tenukiban/**)",
+      "Edit(/tenukiban.config.json)"
+    ]
+  }
+}

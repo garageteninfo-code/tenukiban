@@ -1,0 +1,78 @@
+{
+  "name": "en",
+  "description": "English overclaims in UI text and descriptions. Negated forms (not guaranteed / not fully autonomous) are not violations.",
+  "rules": [
+    {
+      "id": "en-100pct",
+      "kind": "誇大表現(英)",
+      "pattern": "(?<!\\bnot\\s)(?<!\\bnever\\s)\\b100\\s*%\\s*(secure|safe|accurate|correct|guaranteed|reliable|uptime|automated|automatic|satisfaction|private)",
+      "flags": "i",
+      "scope": "line",
+      "message": "Claims '100% secure/accurate/...'.",
+      "fix": "State what was measured and under which conditions."
+    },
+    {
+      "id": "en-guarantee",
+      "kind": "誇大表現(英)",
+      "pattern": "\\bguaranteed\\s+(results?|success|returns?|income|accuracy|uptime|security|safety|growth|sales)\\b|\\bwe\\s+guarantee\\b|\\b(money[- ]back|satisfaction)\\s+guarantee(d)?\\b|\\b100\\s*%\\s*guaranteed\\b",
+      "flags": "i",
+      "scope": "line",
+      "message": "Promises guaranteed results.",
+      "fix": "Do not promise outcomes. Put refund terms in the terms of service."
+    },
+    {
+      "id": "en-never-fails",
+      "kind": "誇大表現(英)",
+      "pattern": "\\bnever\\s+(makes?\\s+(a\\s+)?mistakes?|fails?|goes\\s+down|breaks?|loses?\\s+data|gets?\\s+it\\s+wrong)\\b",
+      "flags": "i",
+      "scope": "line",
+      "message": "Claims it never fails / never makes mistakes.",
+      "fix": "Describe how often it was right in testing and what to do when it is wrong."
+    },
+    {
+      "id": "en-bulletproof",
+      "kind": "誇大表現(英)",
+      "pattern": "\\b(unhackable|bulletproof|bullet-proof|military[- ]grade|bank[- ]grade|hack[- ]proof|foolproof|error[- ]free|flawless|perfect(ly)?\\s+(accurate|secure|safe))\\b",
+      "flags": "i",
+      "scope": "line",
+      "message": "Security / quality overclaim (unhackable, bank-grade, flawless...).",
+      "fix": "Name the concrete measures instead (e.g. 'TLS in transit, data deleted after 24h')."
+    },
+    {
+      "id": "en-zero",
+      "kind": "誇大表現(英)",
+      "pattern": "\\bzero\\s+(bugs|errors|mistakes|downtime|risk|hallucinations?)\\b",
+      "flags": "i",
+      "scope": "line",
+      "message": "Claims zero bugs / errors / risk.",
+      "fix": "State the measured result and its scope."
+    },
+    {
+      "id": "en-fully-autonomous",
+      "kind": "誇大表現(英)",
+      "pattern": "(?<!\\bnot\\s)\\bfully[\\s-]+(autonomous|automated|automatic)\\b",
+      "flags": "i",
+      "scope": "line",
+      "message": "Claims 'fully autonomous / fully automated' (hides where a human must check).",
+      "fix": "Say which steps need human approval."
+    },
+    {
+      "id": "en-number-one",
+      "kind": "誇大表現(英)",
+      "pattern": "\\b(#1|No\\.?\\s*1|number\\s+one)\\s+(in|AI|tool|platform|solution)\\b|\\bworld'?s\\s+(first|best|fastest|most\\s+accurate)\\b|\\bindustry[- ]leading\\b",
+      "flags": "i",
+      "scope": "line",
+      "message": "Ranking claim without evidence (#1, world's first, industry-leading).",
+      "fix": "Remove, or cite the source and date."
+    },
+    {
+      "id": "en-always",
+      "kind": "誇大表現(英)",
+      "pattern": "\\balways\\s+(accurate|right|correct|secure|available)\\b|\\brock[- ]solid\\b|\\bnever\\s+worry\\b|\\b(trust|rely\\s+on)\\s+(it\\s+)?100\\s*%|\\b100\\s*%\\s*(trust|hands[- ]free)",
+      "flags": "i",
+      "scope": "line",
+      "message": "Absolute claims ('always accurate', 'rock-solid', 'never worry').",
+      "fix": "State measured results and limits."
+    }
+  ]
+}

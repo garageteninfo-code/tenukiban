@@ -1,0 +1,47 @@
+{
+  "name": "tenukiban",
+  "version": "0.2.0",
+  "private": true,
+  "description": "手抜き番：AI が書いたコードが黙って悪くなる・成功のふりをする・見張りを外すのを止める（JS・TS・Python。依存なし）。Stops AI-written code from quietly getting worse or faking success.",
+  "keywords": [
+    "ai",
+    "claude-code",
+    "codex",
+    "cursor",
+    "copilot",
+    "ratchet",
+    "lint",
+    "honesty",
+    "fake-success",
+    "test-skip",
+    "pytest",
+    "quality-gate",
+    "japanese"
+  ],
+  "author": "HARVEST <garageten.info@gmail.com>",
+  "license": "UNLICENSED",
+  "//license": "All rights reserved (HARVEST). 閲覧と、自分・自分の組織の中で道具として使うことは無料。再配布・改変・販売・ほかの製品への組み込みは許可が必要。詳しくは LICENSE と 利用条件.md。npm にはまだ公開していないので private: true のまま。",
+  "type": "module",
+  "bin": {
+    "tenukiban": "bin/tenukiban.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "rules/",
+    "templates/",
+    "web/index.html",
+    "README.md",
+    "LICENSE",
+    "利用条件.md",
+    "TERMS-en.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "build:web": "node web/build.mjs",
+    "measure": "node test/ラベル付き/測る.mjs"
+  }
+}

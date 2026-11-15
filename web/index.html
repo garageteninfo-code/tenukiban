@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fLf6m/JLndxPoc/xSJysSxwFusUarARUwd0IEkItdNw='; style-src 'sha256-PZoMX0MuclaePve598zsZtidNA5cdJboLPHQIKsjiTY='; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手抜き番</title>
+<style>:root {
+  --bg: #f7f6f2; --fg: #1d1d1b; --muted: #5d5c57; --card: #ffffff; --line: #d9d6cc;
+  --accent: #1f5f8b; --good: #1e6b3a; --good-bg: #e7f3eb; --bad: #9b2c1f; --bad-bg: #fbeae6;
+  --warn-bg: #fff6dd; --code-bg: #f0eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171716; --fg: #ecebe6; --muted: #a9a79f; --card: #22221f; --line: #3a3934;
+    --accent: #7db7e0; --good: #8fd3a5; --good-bg: #1d2e22; --bad: #f0a595; --bad-bg: #3a211c;
+    --warn-bg: #362f17; --code-bg: #2b2a26;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.75; }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+.lead { color: var(--muted); margin: 0 0 20px; }
+.promise { background: var(--good-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
+.promise strong { color: var(--good); }
+#drop { border: 2px dashed var(--line); border-radius: 12px; padding: 28px 16px; text-align: center; background: var(--card); }
+#drop.over { border-color: var(--accent); }
+#drop label { display: inline-block; background: var(--accent); color: var(--bg); padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+#drop input { position: absolute; left: -9999px; }
+#status { min-height: 1.5em; color: var(--muted); margin: 12px 0; }
+.summary { border-radius: 10px; padding: 12px 16px; margin: 16px 0; border: 1px solid var(--line); }
+.summary.good { background: var(--good-bg); }
+.summary.bad { background: var(--bad-bg); }
+.summary h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.summary p { margin: 4px 0; }
+.warn, .notice { background: var(--warn-bg); border-radius: 8px; padding: 8px 12px; }
+.notice { margin: 12px 0; border: 1px solid var(--line); }
+.notice h3 { margin: 0; font-size: 1rem; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 12px 0; }
+.card h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.where { color: var(--muted); margin: 0; overflow-wrap: anywhere; }
+.code { background: var(--code-bg); padding: 6px 10px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9rem; margin: 6px 0; }
+.plain { margin: 6px 0; }
+.ask { border-left: 4px solid var(--accent); padding: 4px 12px; margin-top: 8px; }
+.ask-label { font-weight: 700; margin: 0; color: var(--accent); }
+.ask-text { margin: 4px 0 8px; }
+button.copy { background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 12px; cursor: pointer; font: inherit; }
+button.copy.all { margin: 4px 0 8px; }
+.foot, .limits { color: var(--muted); font-size: 0.92rem; }
+.limits { margin-top: 32px; border-top: 1px solid var(--line); padding-top: 12px; }
+.limits ul { padding-left: 1.2em; }
+</style>
+</head>
+<body>
+<main>
+<h1>手抜き番（ブラウザ版・試作）</h1>
+<p class="lead">AI に書かせたコードの中から、「できていないのに成功と返す」「エラーを黙って捨てる」「完璧・100%安全と言い切る」などを探して、日本語で説明します。</p>
+<div class="promise"><strong>中身はどこにも送りません。</strong>選んだフォルダは、このパソコンの中（このページの中）だけで読みます。このページは決まり（CSP）で通信そのものを禁止しているので、送ろうとしても送れません。インターネットを切っても同じように動きます。</div>
+<div id="drop">
+<p>プロジェクトのフォルダを、ここにドラッグしてください。</p>
+<label>フォルダを選ぶ<input id="picker" type="file" webkitdirectory directory multiple></label>
+<p class="foot">ブラウザが「ファイルをアップロードしますか」と聞くことがあります。これはブラウザの決まった言い方で、実際にはどこにも送りません。</p>
+</div>
+<p id="status" role="status"></p>
+<section id="result" hidden></section>
+<section class="limits">
+<h2>このページでできないこと（正直に）</h2>
+<ul>
+<li>見つけられるのは一部です。社内の試験では、見ていない書き方のうち約半分（18 件中 10 件）を見つけ、正しいコードの 12 件中 1 件を誤って指摘しました。0 件でも「問題がない」とは言えません。</li>
+<li>「前より悪くなったか」（歯止め）と、「AI が試験や基準を書き換えて通したか」は、ブラウザ版では見ません。毎回の比べ合わせが要るので、パソコンの中で動く命令版（tenukiban check）で見ます。</li>
+<li>読むのは JS・TS・HTML・Python などのファイルだけです。node_modules・.venv・.env・鍵のファイルは読みません。Python の規則は社内の試験で、見ていない書き方の 20 件中 10 件を見つけ、正しいコードの 14 件中 1 件を誤って指摘しました。</li>
+</ul>
+</section>
+</main>
+<script>"use strict";
+var RULE_SETS = [{"name":"code","description":"言語に関係しないコードの型：仕事をせずに成功を返す・エラーを握りつぶす・測らずに点数を出す・認証を素通りさせる。目印の言葉は日本語と英語の両方。","rules":[{"id":"stub-success","kind":"偽の成功","pattern":"\\b(return|resolve|res\\.json|res\\.send|json|send)\\b[^;\\n]*\\b(ok|success|succeeded|passed|verified|sent|saved)['\"]?\\s*:\\s*true\\b|\\b(return|json|send)\\b[^;\\n]*\\b(status|result)\\s*:\\s*['\"](done|ok|success|sent|completed|完了|成功|送信済み)['\"]","flags":"i","scope":"line","near":"TODO|FIXME|XXX|\\bstub\\b|placeholder|not implemented|for now|temporar|dummy|\\bfake\\b|(?<![\\u4e00-\\u9fff])仮(?![\\u4e00-\\u9fff])|後で|あとで|未実装|とりあえず|ダミー|見せる|(する|した)ふり|ふりをする","window":[4,0],"message":"未実装・仮の印のすぐ近くで「成功」を返しています（仕事をせずに成功と言っている疑い）。","fix":"実装するまでは失敗（例: { ok: false, error: '未実装' } や 501）を返す。","notNear":"await\\s+(?!new\\s+Promise|sleep|delay|wait)[\\w.]+\\(|\\.write\\w*\\(|\\.save\\(|\\.insert\\(|fetch\\("},{"id":"stub-return-literal","kind":"偽の成功","pattern":"\\breturn\\s*\\{[^}]*\\}","scope":"line","flags":"i","near":"(とりあえず|仮の?値|固定|ダミー|dummy|hard-?coded|for now|placeholder)","notNear":"await\\s+(?!new\\s+Promise|sleep|delay|wait)[\\w.]+\\(|\\.write\\w*\\(|\\.save\\(|\\.insert\\(|fetch\\(","window":[1,0],"message":"仮・固定の印のそばで、作った値をそのまま返しています。","fix":"本当の結果を返す。まだなら「未実装」と分かる失敗を返す。"},{"id":"stub-true","kind":"偽の成功","pattern":"^\\s*return\\s+(true|!0)\\s*;?|=>\\s*true\\s*;?\\s*(//.*)?$","scope":"line","near":"TODO|FIXME|XXX|\\bstub\\b|placeholder|not implemented|for now|temporar|dummy|\\bfake\\b|(?<![\\u4e00-\\u9fff])仮(?![\\u4e00-\\u9fff])|後で|あとで|未実装|とりあえず|ダミー","flags":"i","window":[2,0],"message":"仮の印のそばで true を固定で返しています。","fix":"本当の判定を書くか、実装するまでは false／例外にする。"},{"id":"check-always-true","kind":"偽の成功","pattern":"\\b(verify|validate|authorize|authenticate|checkAuth|checkPermission|isAdmin|isAuthorized|isAuthenticated|isAllowed|canAccess|hasPermission)\\w*\\s*(\\([^)]*\\)|=\\s*(async\\s*)?\\([^)]*\\)\\s*=>)\\s*(:\\s*[\\w<>]+\\s*)?\\{\\s*return\\s+true\\s*;?\\s*(//[^\\n]*)?\\s*\\}","scope":"file","message":"確認・認証の関数が、何も調べずに常に true を返しています。","fix":"本当に調べる。まだなら false を返す（安全側に倒す）。"},{"id":"check-arrow-true","kind":"偽の成功","pattern":"\\b(is|can|has|check|verify|validate)(LoggedIn|Admin|Auth\\w*|Allowed|Owner|Permission\\w*|Access|License\\w*|Paid)\\s*=\\s*(async\\s*)?\\([^)]*\\)\\s*=>\\s*true\\b","scope":"line","message":"確認の関数が、何も調べずに常に true を返しています。","fix":"本当に調べる。まだなら false を返す（安全側に倒す）。"},{"id":"log-instead-of-action","kind":"偽の成功","pattern":"(console\\.(log|info)|toast\\w*|alert|notify|showToast|setMessage|message\\.success)\\(\\s*['\"`][^'\"`]*(送信しました|保存しました|登録しました|完了しました|支払いました|予約しました|送りました|\\bsent\\b|\\bsaved\\b|\\buploaded\\b|\\bcharged\\b)","flags":"i","scope":"line","notNear":"await|\\.send\\(|\\.save\\(|\\.insert\\(|\\.write|fetch\\(|axios|\\.create\\(|commit\\(|sendMail|transporter|\\.then\\(|\\bres\\.ok\\b|\\.ok\\s*\\)|addApproval|set[A-Z]\\w*\\(","window":[8,1],"message":"「〜しました」と記録していますが、近くに実際の処理（送信・保存の呼び出し）が見当たりません。","fix":"本当に処理してから記録する。処理の結果を見て成功・失敗を出し分ける。"},{"id":"fake-delay","kind":"偽の成功","pattern":"(setTimeout\\(\\s*\\w*\\s*,|\\bsleep\\(|\\bdelay\\(|\\bwait\\()\\s*\\d{3,}","scope":"line","near":"(status|ok|success|done)['\"]?\\s*:\\s*(true|['\"](done|ok|success|completed|完了)['\"])|setStatus\\(\\s*['\"](done|完了|成功)|見せる|(する|した)ふり","notNear":"retry|backoff|attempt|再試行|リトライ|poll|ポーリング|rate.?limit|debounce|throttle|await\\s+(?!new\\s+Promise|sleep|delay|wait)[\\w.]+\\(|\\.write\\w*\\(|\\.save\\(|\\.insert\\(|fetch\\(","flags":"i","window":[1,3],"message":"待つだけで「完了」を出しています（処理しているように見せる疑い）。","fix":"本当の処理の終わりを待って結果を出す。待つ理由（再試行など）があるならコメントか免除で明示。"},{"id":"mock-in-prod","kind":"偽の成功","pattern":"\\breturn\\s+(MOCK|FAKE|DUMMY|STUB)_\\w+|\\breturn\\s+(mock|fake|dummy|stub)[A-Z]\\w*","scope":"line","message":"本番のコードで、作り物のデータ（mock/fake/dummy）を返しています。","fix":"本物のデータを返す。デモ用なら、画面にデモと分かる表示を出し、設定で切り替える。"},{"id":"empty-catch","kind":"握りつぶし","pattern":"\\bcatch\\s*(\\(\\s*[^)]*\\))?\\s*\\{(\\s|/\\*\\s*\\*/)*\\}","scope":"file","message":"空の catch。エラーが起きても誰にも分かりません。","fix":"記録（ログ）する・投げ直す・利用者に失敗を伝える。わざと無視するなら、なぜ無視してよいかを catch の中にコメントで書く。 localStorage を包む try は対象外（非公開モードで投げるため。数は debt の emptyCatch に残る）。","unless":"localStorage|sessionStorage"},{"id":"promise-catch-noop","kind":"握りつぶし","pattern":"\\.catch\\(\\s*(\\(\\s*\\w*\\s*\\)|\\w+)\\s*=>\\s*(\\{\\s*\\}|undefined|void 0)\\s*\\)|\\.catch\\(\\s*(async\\s+)?function\\s*\\w*\\s*\\([^)]*\\)\\s*\\{\\s*\\}\\s*\\)|\\.on\\(\\s*['\"](error|uncaughtException|unhandledRejection)['\"]\\s*,\\s*\\(?\\s*\\w*\\s*\\)?\\s*=>\\s*\\{\\s*\\}\\s*\\)","scope":"line","unless":"\\)\\s*;?\\s*//\\s*\\S{4,}","message":".catch(() => {}) でエラーを捨てています。","fix":"記録する・失敗を伝える。わざとなら同じ行に理由のコメントを書く。"},{"id":"catch-returns-success","kind":"握りつぶし","pattern":"\\bcatch\\s*(\\([^)]*\\))?\\s*\\{\\s*(//[^\\n]*\\s*)?return\\s*(\\{\\s*(ok|success)\\s*:\\s*true|true\\b)","scope":"file","message":"失敗したのに成功を返しています（catch の中で ok: true）。","fix":"catch では失敗を返す（ok: false とエラーの理由）。"},{"id":"catch-returns-empty","kind":"握りつぶし","pattern":"\\bcatch\\s*(\\([^)]*\\))?\\s*\\{\\s*return\\s*(\\[\\s*\\]|\\{\\s*\\}|0)\\s*;?\\s*\\}","scope":"file","message":"失敗したときに「空（データ 0 件）」を返しています。失敗と「本当に 0 件」の区別がつきません。","fix":"失敗を投げ直すか、失敗と分かる値（{ ok: false, error }）を返す。"},{"id":"hardcoded-score","kind":"固定の点数","pattern":"\\b(score|[a-z]+Score|accuracy|confidence|precision|successRate|percentage|percent)\\s*:\\s*(?!0(\\.0+)?(?![\\d.]))\\d+(\\.\\d+)?\\s*[,}\\n]?","scope":"line","unless":"\\b(min|max|threshold|pass|target|goal|limit|default|weights?)([A-Z]\\w*)?\\s*[:=]|閾値|合格|目標|しきい値|^\\s*(//|\\*|/\\*)","message":"点数・精度を数字で書き込んでいます（測らずに出している疑い）。","fix":"実際の信号から計算して出す。合格線などの設定値なら、名前に min/threshold などを付けるか免除する。"},{"id":"score-func-constant","kind":"固定の点数","pattern":"\\b\\w*(score|Score|rating|Rating|accuracy|Accuracy)\\w*\\s*(\\([^)]*\\)|=\\s*(async\\s*)?\\([^)]*\\)\\s*=>)\\s*(:\\s*\\w+\\s*)?\\{\\s*return\\s+\\d+(\\.\\d+)?\\s*;?\\s*\\}","scope":"file","message":"点数を計算する関数が、いつも同じ数字を返しています。","fix":"入力から計算する。まだなら『未計測』と分かる値（null など）を返す。"},{"id":"fixed-percent-claim","kind":"固定の点数","pattern":"(精度|正答率|正解率|成功率|満足度|的中率|accuracy|success rate)\\s*[:：はが]?\\s*(?!0)\\d{2,3}(\\.\\d+)?\\s*[%％]","flags":"i","scope":"line","message":"精度・成功率を固定の数字で画面に出しています。","fix":"測った値を、測った日・件数と一緒に出す（例: 『30問中30合格（11/11 時点）』）。"},{"id":"demo-user","kind":"偽の認証","pattern":"['\"`](demo|test|dummy|fake|guest)[-_]?user([-_]?id)?['\"`]|\\|\\|\\s*['\"`](admin|root)['\"`]|(\\?\\?|\\|\\|)\\s*\\{[^}]*role\\s*:\\s*['\"](admin|owner)['\"]","flags":"i","scope":"line","message":"ログインしていない人を、作り物の利用者（demo-user 等）として通しています。","fix":"ログインが無ければ 401 を返す。"},{"id":"no-token-admin","kind":"偽の認証","pattern":"if\\s*\\(\\s*!\\s*[\\w.]*(token|auth|session|user)\\w*\\s*\\)\\s*\\{?\\s*(req\\.)?user\\s*=\\s*\\{[^}]*(admin|role)","flags":"i","scope":"file","message":"鍵（トークン）が無いときに、管理者として通しています。","fix":"鍵が無ければ 401 を返す。"}]},{"name":"ja","description":"日本語の誇大表現。画面・説明文で、実際の動きを超えることを言い切る言葉。打ち消し（〜ではありません・〜とは言えません）は違反にしない。","rules":[{"id":"ja-kanpeki","kind":"誇大表現(日)","pattern":"完璧(?!(では|じゃ|とは|に近|を目指|ではな))","scope":"line","message":"「完璧」と言い切っています。","fix":"できる範囲を書く（例: 『多くの場合に使える下書きを作ります。送る前に確認してください』）。"},{"id":"ja-100pct","kind":"誇大表現(日)","pattern":"(100|１００)\\s*[%％]\\s*の?\\s*(安全|精度|正確|確実|保証|自動|満足|成功|防|守)(?![^。、\\n]{0,8}(とは|では|じゃ|ではな|と言え|しません|していません|できません))","scope":"line","message":"「100%〜」と言い切っています。","fix":"測った結果を、条件つきで書く（例: 『試験 30 問ではすべて正解』）。"},{"id":"ja-zettai","kind":"誇大表現(日)","pattern":"絶対(に)?(失敗し|安全|儲か|成功|大丈夫|間違いな|間違えな|バレな|ミスしな|落ちな|止まらな|漏れな)","scope":"line","message":"「絶対に〜」と言い切っています。","fix":"起こりにくさと、起きたときの対応を書く。"},{"id":"ja-kanzen","kind":"誇大表現(日)","pattern":"完全(自動|自律|無欠|無料で稼|に安全|網羅|保護|に防)(?!(では|じゃ|とは|ではな|ではあり))","scope":"line","message":"「完全自動・完全自律」などと言い切っています（人の確認が要る所が隠れる）。","fix":"人がする所を書く（例: 『AI が下書きを作り、送るのは人』）。機能の名前の『全自動』は対象外。"},{"id":"ja-kanarazu","kind":"誇大表現(日)","pattern":"必ず(儲か|稼げ|売上が|売れ|成功|合格|治|痩せ|上位|集客|うまくいき|結果が出|効果が)","scope":"line","message":"「必ず〜できる」と成果を約束しています。","fix":"成果は約束しない。事例や条件を書く。"},{"id":"ja-no1","kind":"誇大表現(日)","pattern":"(業界|日本|世界|国内)\\s*(No\\.?\\s*1|ナンバー(ワン|1)|一(?![周部度人つ般律斉方定])|初(?!め)|最高|最速|最安|トップ)","scope":"line","message":"「業界No.1・日本一・世界初」などの比べた結果の言い切り（根拠が要る）。","fix":"根拠（調べた日・方法・出典）が無いなら書かない。"},{"id":"ja-zero-miss","kind":"誇大表現(日)","pattern":"(ミス|エラー|バグ|間違い|失敗|事故|漏れ)(は|が|も)?\\s*(一切|ゼロ|０|0件|まったく|全く)\\s*(あり|しな|な|起き|出)","scope":"line","message":"「ミスは一切ありません」と言い切っています。","fix":"測った範囲を書く（例: 『試験 30 問で誤り 0 件』）。"},{"id":"ja-banzen","kind":"誇大表現(日)","pattern":"(セキュリティ|安全|対策|サポート|守り|保護)(は|も|面も|面は)?\\s*万全","scope":"line","message":"「セキュリティは万全」と言い切っています。","fix":"何をしているか（例: 『通信は暗号化・24時間で消去』）を具体的に書く。"},{"id":"ja-hosho","kind":"誇大表現(日)","pattern":"(成果|効果|売上|結果|利益|合格|集客|満足)\\s*(を|は)?\\s*(完全)?保証(?!(しません|できません|はありません|はしていません|しかねます))","scope":"line","message":"成果・効果を保証すると言っています。","fix":"成果は保証しない。返金の条件などは、規約として別に正確に書く。"},{"id":"ja-iikiri","kind":"誇大表現(日)","pattern":"間違いなく(売|儲|成功|上が|稼|増え)|確実に(儲か|稼げ|売上|売れ|成功|上が|治|痩せ|増え)|手間(ゼロ|0)で|最強の|誰でも(簡単に)?\\s*(月|年)?\\s*\\d+\\s*万","scope":"line","message":"「間違いなく・確実に儲かる・最強・誰でも月○万」などの言い切り。","fix":"成果は約束しない。事例・条件・測った結果を書く。"}]},{"name":"en","description":"English overclaims in UI text and descriptions. Negated forms (not guaranteed / not fully autonomous) are not violations.","rules":[{"id":"en-100pct","kind":"誇大表現(英)","pattern":"(?<!\\bnot\\s)(?<!\\bnever\\s)\\b100\\s*%\\s*(secure|safe|accurate|correct|guaranteed|reliable|uptime|automated|automatic|satisfaction|private)","flags":"i","scope":"line","message":"Claims '100% secure/accurate/...'.","fix":"State what was measured and under which conditions."},{"id":"en-guarantee","kind":"誇大表現(英)","pattern":"\\bguaranteed\\s+(results?|success|returns?|income|accuracy|uptime|security|safety|growth|sales)\\b|\\bwe\\s+guarantee\\b|\\b(money[- ]back|satisfaction)\\s+guarantee(d)?\\b|\\b100\\s*%\\s*guaranteed\\b","flags":"i","scope":"line","message":"Promises guaranteed results.","fix":"Do not promise outcomes. Put refund terms in the terms of service."},{"id":"en-never-fails","kind":"誇大表現(英)","pattern":"\\bnever\\s+(makes?\\s+(a\\s+)?mistakes?|fails?|goes\\s+down|breaks?|loses?\\s+data|gets?\\s+it\\s+wrong)\\b","flags":"i","scope":"line","message":"Claims it never fails / never makes mistakes.","fix":"Describe how often it was right in testing and what to do when it is wrong."},{"id":"en-bulletproof","kind":"誇大表現(英)","pattern":"\\b(unhackable|bulletproof|bullet-proof|military[- ]grade|bank[- ]grade|hack[- ]proof|foolproof|error[- ]free|flawless|perfect(ly)?\\s+(accurate|secure|safe))\\b","flags":"i","scope":"line","message":"Security / quality overclaim (unhackable, bank-grade, flawless...).","fix":"Name the concrete measures instead (e.g. 'TLS in transit, data deleted after 24h')."},{"id":"en-zero","kind":"誇大表現(英)","pattern":"\\bzero\\s+(bugs|errors|mistakes|downtime|risk|hallucinations?)\\b","flags":"i","scope":"line","message":"Claims zero bugs / errors / risk.","fix":"State the measured result and its scope."},{"id":"en-fully-autonomous","kind":"誇大表現(英)","pattern":"(?<!\\bnot\\s)\\bfully[\\s-]+(autonomous|automated|automatic)\\b","flags":"i","scope":"line","message":"Claims 'fully autonomous / fully automated' (hides where a human must check).","fix":"Say which steps need human approval."},{"id":"en-number-one","kind":"誇大表現(英)","pattern":"\\b(#1|No\\.?\\s*1|number\\s+one)\\s+(in|AI|tool|platform|solution)\\b|\\bworld'?s\\s+(first|best|fastest|most\\s+accurate)\\b|\\bindustry[- ]leading\\b","flags":"i","scope":"line","message":"Ranking claim without evidence (#1, world's first, industry-leading).","fix":"Remove, or cite the source and date."},{"id":"en-always","kind":"誇大表現(英)","pattern":"\\balways\\s+(accurate|right|correct|secure|available)\\b|\\brock[- ]solid\\b|\\bnever\\s+worry\\b|\\b(trust|rely\\s+on)\\s+(it\\s+)?100\\s*%|\\b100\\s*%\\s*(trust|hands[- ]free)","flags":"i","scope":"line","message":"Absolute claims ('always accurate', 'rock-solid', 'never worry').","fix":"State measured results and limits."}]},{"name":"python","description":"Python（.py）だけに当てる型：仕事をせずに成功を返す・except で握りつぶす・測らずに点数を出す・仮の値を返す・中身の無い試験・認証の素通り。2026-11-14 手抜き番で足した（同僚の規則ではない）。ラベル付きの片 test/ラベル付き/自作.mjs を書いた後に作った。","rules":[{"id":"py-def-returns-success","kind":"偽の成功","exts":[".py"],"pattern":"^[ \\t]*(?:async[ \\t]+)?def[ \\t]+(?:send|save|charge|pay|upload|delete|remove|create|update|notify|post|submit|register|book|reserve|refund|sync|import|export|process|write|store|publish|deploy|email|mail|transfer|cancel|confirm|order|purchase|insert)\\w*[ \\t]*\\([^)]*\\)[^:\\n]*:[ \\t]*\\n(?:[ \\t]*(?:#[^\\n]*|\"\"\"[^\\n]*\"\"\"|'''[^\\n]*''')?\\n)*[ \\t]*return[ \\t]+(?:True\\b|\\{[^}\\n]*[\"'](?:ok|success|sent|saved|done|status)[\"'][ \\t]*:[ \\t]*(?:True\\b|[\"'](?:ok|success|done|sent|completed)[\"'])|[\"'](?:ok|success|done|sent|completed)[\"'])","flags":"m","scope":"file","message":"「送る・保存する・払う」などの関数が、何もせずにすぐ成功を返しています。","fix":"本当に処理を書く。まだなら raise NotImplementedError か {\"ok\": False, \"error\": \"未実装\"} を返す。"},{"id":"py-except-pass","kind":"握りつぶし","exts":[".py"],"pattern":"^[ \\t]*except\\b[^:\\n]*:[ \\t]*(?:\\n[ \\t]*)?(?:pass|\\.\\.\\.)[ \\t]*$|^[ \\t]*except(?:[ \\t]*\\(?[ \\t]*(?:Base)?Exception\\b[^:\\n]*)?[ \\t]*:[ \\t]*(?:\\n[ \\t]*)?continue[ \\t]*$","flags":"m","scope":"file","message":"except の中が pass だけ（または continue だけ）。エラーが起きても誰にも分かりません。","fix":"記録（logger.exception）する・raise で投げ直す・利用者に失敗を伝える。わざと無視するなら、なぜ無視してよいかを同じ行か上の行にコメントで書く。"},{"id":"py-except-returns-success","kind":"握りつぶし","exts":[".py"],"pattern":"^[ \\t]*except\\b[^:\\n]*:[ \\t]*(?:#[^\\n]*)?\\n(?:[ \\t]*#[^\\n]*\\n)*[ \\t]*return[ \\t]+(?:True\\b|\\{[^}\\n]*[\"'](?:ok|success)[\"'][ \\t]*:[ \\t]*True\\b|[\"'](?:ok|success|done)[\"'])","flags":"m","scope":"file","message":"失敗したのに成功を返しています（except の中で True や ok: True）。","fix":"except では失敗を返す（{\"ok\": False, \"error\": 理由}）か、投げ直す。"},{"id":"py-except-returns-empty","kind":"握りつぶし","exts":[".py"],"pattern":"^[ \\t]*except(?:[ \\t]*\\(?[ \\t]*(?:Base)?Exception\\b[^:\\n]*)?[ \\t]*:[ \\t]*\\n[ \\t]*return[ \\t]+(?:\\[[ \\t]*\\]|\\{[ \\t]*\\}|0|\"\"|'')[ \\t]*$","flags":"m","scope":"file","message":"何でも受け止める except で「空（0 件）」を返しています。失敗と「本当に 0 件」の区別がつきません。","fix":"投げ直すか、失敗と分かる値を返す。受け止める例外を絞る（例: except requests.Timeout）。"},{"id":"py-except-exit-zero","kind":"握りつぶし","exts":[".py"],"pattern":"^[ \\t]*except\\b[^:\\n]*:[ \\t]*(?:#[^\\n]*)?\\n(?:[^\\n]*\\n)?[ \\t]*(?:sys\\.|os\\._)?exit\\([ \\t]*0?[ \\t]*\\)","flags":"m","scope":"file","message":"失敗したときに「成功（終了コード 0）」で終わっています。自動の確認が失敗に気づけません。","fix":"失敗したら 0 以外（sys.exit(1)）で終わる。理由を表示する。"},{"id":"py-suppress-broad","kind":"握りつぶし","exts":[".py"],"pattern":"\\bsuppress\\(\\s*(?:Base)?Exception\\s*\\)","scope":"line","unless":"#\\s*\\S{4,}","message":"suppress(Exception) で、どんなエラーも黙って捨てています。","fix":"捨ててよい例外だけに絞る（例: suppress(FileNotFoundError)）。わざとなら同じ行に理由のコメントを書く。"},{"id":"py-hardcoded-score","kind":"固定の点数","exts":[".py"],"pattern":"(?:^|[\\s{,(])[\"']?(?:score|\\w+_score|accuracy|confidence|precision|recall|f1|success_rate|percentage|percent)[\"']?\\s*(?::|=(?!=))\\s*(?!0(?:\\.0+)?(?![\\d.]))\\d+(?:\\.\\d+)?\\s*(?:[,})\\]]|#|$)","flags":"i","scope":"line","unless":"\\b(?:min|max|threshold|pass|target|goal|limit|default|weights?|expected)\\w*[\"']?\\s*[:=]|閾値|合格|目標|しきい値|^\\s*#|^\\s*(?:async\\s+)?def\\b","message":"点数・精度を数字で書き込んでいます（測らずに出している疑い）。","fix":"実際の入力から計算して出す。合格線などの設定値なら、名前に MIN_・THRESHOLD などを付けるか免除する。"},{"id":"py-score-func-constant","kind":"固定の点数","exts":[".py"],"pattern":"^[ \\t]*(?:async[ \\t]+)?def[ \\t]+\\w*(?:score|rating|accuracy|precision|recall|confidence)\\w*[ \\t]*\\([^)]*\\)[^:\\n]*:[ \\t]*\\n(?:[ \\t]*(?:#[^\\n]*|\"\"\"[^\\n]*\"\"\"|'''[^\\n]*''')?\\n)*[ \\t]*return[ \\t]+-?\\d+(?:\\.\\d+)?[ \\t]*(?:#[^\\n]*)?$","flags":"mi","scope":"file","message":"点数を計算する関数が、いつも同じ数字を返しています。","fix":"入力から計算する。まだなら『未計測』と分かる値（None）を返すか、NotImplementedError を投げる。"},{"id":"py-stub-return-literal","kind":"偽の成功","exts":[".py"],"pattern":"^\\s*return\\s+(?:-?\\d+(?:\\.\\d+)?|True|[\"'][^\"'\\n]*[\"']|\\[[^\\]\\n]*\\]|\\{[^}\\n]*\\}|\\([^)\\n]*\\))\\s*(?:#.*)?$","scope":"line","flags":"i","near":"TODO|FIXME|XXX|\\bstub\\b|placeholder|not implemented|for now|temporar|dummy|\\bfake\\b|hard-?coded|(?<![\\u4e00-\\u9fff])仮(?![\\u4e00-\\u9fff])|後で|あとで|未実装|とりあえず|ダミー|固定","window":[2,0],"unless":"\\bFalse\\b|[\"']error[\"']|未実装|not.?implemented","message":"「あとで」「仮」の印のそばで、決まった値をそのまま返しています。","fix":"本当の結果を返す。まだなら raise NotImplementedError にする（画面に本物らしい値を出さない）。"},{"id":"py-assert-trivial","kind":"中身の無い試験","exts":[".py"],"includeTests":true,"pattern":"^\\s*assert\\s+(?:True|1|not\\s+False|True\\s*==\\s*True|1\\s*==\\s*1|[\"'][^\"']+[\"'])\\s*(?:,.*)?(?:#.*)?$|^\\s*assert\\b.*\\bor\\s+True\\s*(?:,.*)?(?:#.*)?$|\\bself\\.assertTrue\\(\\s*(?:True|1)\\s*\\)|\\bself\\.assertEqual\\(\\s*1\\s*,\\s*1\\s*\\)","scope":"line","message":"いつでも通る確かめ（assert True・… or True など）。何も確かめていない試験です。","fix":"本当の結果を確かめる（例: assert total([100, 200]) == 300）。"},{"id":"py-auth-always-true","kind":"偽の認証","exts":[".py"],"pattern":"^[ \\t]*(?:async[ \\t]+)?def[ \\t]+(?:is_admin|is_authenticated|is_authorized|is_allowed|is_owner|is_logged_in|is_paid|is_licensed|is_valid_token|check_auth\\w*|check_permission\\w*|check_access|check_license|has_permission\\w*|has_access|can_access|can_edit|can_delete|authorize|authenticate|verify\\w*|validate_token|validate_\\w*key|validate_session|validate_license)[ \\t]*\\([^)]*\\)[^:\\n]*:[ \\t]*\\n(?:[ \\t]*(?:#[^\\n]*|\"\"\"[^\\n]*\"\"\"|'''[^\\n]*''')?\\n)*[ \\t]*return[ \\t]+True[ \\t]*(?:#[^\\n]*)?$","flags":"m","scope":"file","message":"確認・認証の関数が、何も調べずに常に True を返しています。","fix":"本当に調べる。まだなら False を返す（安全側に倒す）。"},{"id":"py-auth-lambda-true","kind":"偽の認証","exts":[".py"],"pattern":"\\b(?:is_\\w*(?:admin|auth\\w*|allowed|owner|logged_in|paid)|can_\\w+|has_\\w*(?:permission|access)|check_\\w*(?:auth|permission|access|license))\\s*=\\s*lambda\\b[^:]*:\\s*True\\b","scope":"line","message":"確認の関数が、何も調べずに常に True を返しています。","fix":"本当に調べる。まだなら False を返す（安全側に倒す）。"},{"id":"py-print-instead-of-action","kind":"偽の成功","exts":[".py"],"pattern":"\\b(?:print|logger\\.(?:info|debug|warning)|logging\\.(?:info|debug)|log\\.info|st\\.success|flash|messages\\.success)\\(\\s*f?[\"'][^\"']*(?:送信しました|保存しました|登録しました|完了しました|支払いました|予約しました|送りました|アップロードしました|\\bsent\\b|\\bsaved\\b|\\buploaded\\b|\\bcharged\\b|\\bsuccessfully\\b)","flags":"i","scope":"line","notNear":"await\\s|\\.send\\w*\\(|\\.save\\w*\\(|\\.insert\\w*\\(|\\.write\\w*\\(|requests\\.|httpx\\.|session\\.|\\.commit\\(|\\.post\\(|\\.put\\(|smtp|\\.execute\\w*\\(|\\.create\\w*\\(|boto|client\\.|\\.upload\\w*\\(|\\.publish\\(|\\.charge\\(|\\.add\\(|\\.delete\\(|\\.update\\(","window":[8,1],"message":"「〜しました」と出していますが、近くに実際の処理（送信・保存の呼び出し）が見当たりません。","fix":"本当に処理してから表示する。処理の結果を見て成功・失敗を出し分ける。"},{"id":"py-fake-delay","kind":"偽の成功","exts":[".py"],"pattern":"\\b(?:time\\.|asyncio\\.)?sleep\\(\\s*\\d+(?:\\.\\d+)?\\s*\\)","flags":"i","scope":"line","near":"(?:status|state|ok|success|done)[\"']?\\s*(?::|=(?!=))\\s*(?:True\\b|[\"'](?:done|ok|success|completed|complete|finished|paid|sent|完了|成功)[\"'])|見せる|(?:する|した)ふり","notNear":"retry|backoff|attempt|再試行|リトライ|poll|ポーリング|rate.?limit|throttle|requests\\.|httpx\\.|\\.save\\(|\\.commit\\(|\\.execute\\(","window":[1,3],"message":"待つだけで「完了」にしています（処理しているように見せる疑い）。","fix":"本当の処理の終わりを待って結果を出す。待つ理由（再試行など）があるならコメントか免除で明示。"},{"id":"py-default-admin","kind":"偽の認証","exts":[".py"],"pattern":"\\bor\\s+[\"'](?:admin|root|owner|superuser)[\"']|\\.get\\(\\s*[\"'](?:role|user_role|user)[\"']\\s*,\\s*[\"'](?:admin|root|owner|superuser)[\"']\\s*\\)|\\bor\\s+\\{[^}]*[\"']role[\"']\\s*:\\s*[\"'](?:admin|owner)[\"']","flags":"i","scope":"line","message":"役割が分からないときに、管理者（admin など）として通しています。","fix":"分からなければ通さない（401・403 を返す）。"},{"id":"py-no-token-admin","kind":"偽の認証","exts":[".py"],"pattern":"^[ \\t]*if[ \\t]+not[ \\t]+[\\w.]*(?:token|auth|session|user|api_key)\\w*[ \\t]*:[ \\t]*\\n[ \\t]*(?:request\\.|g\\.|self\\.)?(?:user|current_user|role)[ \\t]*=[ \\t]*[^\\n]*(?:admin|role)","flags":"mi","scope":"file","message":"鍵（トークン）が無いときに、管理者として通しています。","fix":"鍵が無ければ 401 を返す。"},{"id":"py-mock-in-prod","kind":"偽の成功","exts":[".py"],"pattern":"\\breturn\\s+(?:mock|fake|dummy|stub)_\\w+","scope":"line","message":"本番のコードで、作り物のデータ（mock・fake・dummy）を返しています。","fix":"本物のデータを返す。デモ用なら、画面にデモと分かる表示を出し、設定で切り替える。"}]}];
+// 手抜き番の「中身を読むだけ」の部分。Node とブラウザ（web/index.html）の両方で同じコードを使う。
+// ここでは fs・ネットワークなどは一切使わない（ブラウザ版に埋め込むため）。
+//
+// scanText は同僚の 改良/lib/honesty.mjs の scanText と同じ動き（写して、ファイルを読む部分だけ外した）。
+
+// 後ろの「|(^|/)(test_…|…_test|conftest)\.py$」は 2026-11-14 に Python（pytest・unittest）のために足した。
+const DEFAULT_TEST_PATTERN = '(^|/)(test|tests|__tests__|spec|e2e)/|\\.(test|spec|itest|e2e)\\.[cm]?[jt]sx?$|(^|/)(test_[^/]*|[^/]*_test|conftest)\\.py$';
+const DEFAULT_WAIVERS = ['tenukiban-allow', 'hadome-allow', 'honesty-allow'];
+
+const lineOf = (text, index) => { let n = 1; for (let i = 0; i < index; i++) if (text.charCodeAt(i) === 10) n++; return n; };
+const isTestPath = (rel, pattern = DEFAULT_TEST_PATTERN) => new RegExp(pattern).test(rel);
+
+/** 規則ファイル（{rules:[...]} の配列）から、使える形の規則を作る。 */
+function compileRules(ruleSets, { disable = [] } = {}) {
+  const off = new Set(disable);
+  const ids = new Set();
+  const out = [];
+  for (const set of ruleSets) {
+    for (const r of set.rules) {
+      if (off.has(r.id)) continue;
+      if (ids.has(r.id)) throw new Error(`規則の id が重複しています: ${r.id}`);
+      ids.add(r.id);
+      const flags = (r.flags || '').replace('g', '');
+      out.push({
+        ...r,
+        _set: set.name,
+        re: new RegExp(r.pattern, flags + (r.scope === 'file' ? 'g' : '')),
+        nearRe: r.near ? new RegExp(r.near, flags) : null,
+        notNearRe: r.notNear ? new RegExp(r.notNear, flags) : null,
+        unlessRe: r.unless ? new RegExp(r.unless, flags) : null,
+        win: r.window || [0, 0],
+        _exts: r.exts ? new Set(r.exts.map((e) => e.toLowerCase())) : null,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * 1 ファイルの中身に規則を当てる。
+ * ext（'.py' など）を渡すと、exts の付いた規則（Python 用など）はその拡張子のときだけ当てる。
+ * ext を渡さないときは exts の付いた規則は当てない（同僚の片で測った数字が変わらないように）。
+ */
+function scanText(text, rules, { waiverTokens = DEFAULT_WAIVERS, isTest = false, ext = null } = {}) {
+  const fileExt = ext ? String(ext).toLowerCase() : null;
+  const lines = text.split(/\r?\n/);
+  const hits = [];
+  const waived = (i) => waiverTokens.some((t) => (lines[i] || '').includes(t));
+  const ctx = (i, [b, a]) => lines.slice(Math.max(0, i - b), i + a + 1).join('\n');
+  const accept = (r, i) => {
+    if (waived(i)) return false;
+    if (r.unlessRe && r.unlessRe.test(lines[i])) return false;
+    if (r.nearRe && !r.nearRe.test(ctx(i, r.win))) return false;
+    if (r.notNearRe && r.notNearRe.test(ctx(i, r.win))) return false;
+    return true;
+  };
+  for (const r of rules) {
+    if (isTest && !r.includeTests) continue;
+    if (r._exts && !(fileExt && r._exts.has(fileExt))) continue;
+    if (r.scope === 'file') {
+      r.re.lastIndex = 0;
+      let m;
+      const done = new Set();
+      while ((m = r.re.exec(text))) {
+        if (m[0] === '') { r.re.lastIndex++; continue; }
+        const first = lineOf(text, m.index) - 1;
+        const last = first + (m[0].match(/\n/g) || []).length;
+        if (done.has(first)) continue;
+        done.add(first);
+        let ok = true;
+        for (let i = first; i <= last; i++) if (waived(i)) ok = false;
+        if (ok && accept(r, first)) hits.push({ rule: r, line: first + 1, text: lines[first].trim().slice(0, 140) });
+      }
+    } else {
+      lines.forEach((l, i) => {
+        if (r.re.test(l) && accept(r, i)) hits.push({ rule: r, line: i + 1, text: l.trim().slice(0, 140) });
+      });
+    }
+  }
+  return hits.sort((a, b) => a.line - b.line);
+}
+
+/** 短い指紋（FNV-1a 32bit を 2 回）。暗号ではない。同じ所の同じ指摘かどうかを見分けるだけ。 */
+function fingerprint(s) {
+  let h1 = 0x811c9dc5, h2 = 0x01000193 ^ 0x5bd1e995;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x5bd1e995) >>> 0;
+  }
+  return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+}
+
+// ---------------- 試験（テスト）の数 ----------------
+// 同僚の 改良版/scripts/self-repair/prompt.mjs の TEST_WEAKEN_RE と同じ（試験を飛ばす・絞る書き方）。
+const TEST_WEAKEN_RE = /\b(?:test|it|describe|suite|context)\.(?:skip|only|todo)\b|\bx(?:it|describe|test)\s*\(|\{\s*(?:skip|todo)\s*:\s*(?:true|['"`])/;
+const TEST_CASE_RE = /\b(?:test|it)(?:\.(?:each\s*\([^)]*\)|concurrent|skip|only|todo))?\s*\(\s*['"`]/g;
+
+// Python（pytest・unittest）の「試験を飛ばす・失敗を隠す」書き方（2026-11-14 手抜き番で足した）。
+// skipif・skipIf は条件付きなので数えない（skipif(True …) のように必ず飛ばす形だけ数える）。
+const PY_TEST_WEAKEN_RE = /\bpytest\.mark\.(?:skip|xfail)\b|\bpytest\.(?:skip|xfail)\s*\(|@unittest\.(?:skip|expectedFailure)\b|\bunittest\.skip\s*\(|\bself\.skipTest\s*\(|\bpytest\.mark\.skipif\s*\(\s*(?:True|1)\b|@unittest\.skipIf\s*\(\s*(?:True|1)\b|@unittest\.skipUnless\s*\(\s*(?:False|0)\b|^\s*collect_ignore(?:_glob)?\s*=|\b__test__\s*=\s*False\b/;
+const PY_TEST_CASE_RE = /^[ \t]*(?:async[ \t]+)?def[ \t]+test\w*[ \t]*\(/gm;
+const isPyFile = (file) => /\.py$/i.test(String(file || ''));
+const weakenReFor = (file) => (isPyFile(file) ? PY_TEST_WEAKEN_RE : TEST_WEAKEN_RE);
+
+/** 試験のファイル 1 つの中の、試験の数と、飛ばす印の数。file（名前）が .py なら Python の書き方で数える。 */
+function countTests(text, file = '') {
+  const py = isPyFile(file);
+  const cases = (text.match(py ? PY_TEST_CASE_RE : TEST_CASE_RE) || []).length;
+  const re = py ? PY_TEST_WEAKEN_RE : TEST_WEAKEN_RE;
+  let skipped = 0;
+  const skippedLines = [];
+  text.split(/\r?\n/).forEach((l, i) => { if (re.test(l)) { skipped++; skippedLines.push(i + 1); } });
+  return { cases, skipped, skippedLines };
+}
+
+/**
+ * git diff -U0 の出力から、試験のファイルに足された「試験を飛ばす」行を探す。
+ * 同僚の self-repair/prompt.mjs の findWeakenedTests と同じ考え方（試験ファイルの判定は設定の型を使う）。
+ */
+function findWeakenedTests(diffText, testPattern = DEFAULT_TEST_PATTERN) {
+  const hits = new Map();
+  let file = null;
+  let lineNo = 0;
+  for (const line of String(diffText || '').split(/\r?\n/)) {
+    if (line.startsWith('+++ ')) { file = line.replace(/^\+\+\+ (b\/)?/, '').replace(/^"|"$/g, ''); continue; }
+    const hunk = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)/);
+    if (hunk) { lineNo = Number(hunk[1]); continue; }
+    if (!file || file === '/dev/null') continue;
+    if (line.startsWith('+')) {
+      if (isTestPath(file, testPattern) && weakenReFor(file).test(line.slice(1)) && !hits.has(file)) hits.set(file, { file, line: lineNo, text: line.slice(1).trim().slice(0, 140) });
+      lineNo++;
+    }
+  }
+  return [...hits.values()];
+}
+
+// ---------------- 確認の命令（package.json の scripts） ----------------
+/** 何も確かめない命令なら、その理由を返す。普通の命令なら null。 */
+function noopReason(cmd) {
+  const c = String(cmd ?? '').trim();
+  if (!c) return '中身が空';
+  if (/^(true|:|exit\s+0)$/i.test(c)) return `「${c}」は何もせずに成功します`;
+  if (/^echo\b/i.test(c) && !/&&|\|\||;|\bexit\s+[1-9]/.test(c)) return '文字を出すだけで、何も確かめていません';
+  if (/\|\|\s*(true|:|exit\s+0|echo\b[^&|;]*)\s*$/i.test(c)) return '「|| true」などで、失敗しても成功に変えています';
+  if (/;\s*(exit\s+0|true)\s*$/i.test(c)) return '最後に「exit 0」などで、失敗しても成功に変えています';
+  if (/--passWithNoTests\b/.test(c)) return '試験が 1 つも無くても成功する指定（--passWithNoTests）が付いています';
+  if (/^node\s+-e\s+(['"])\s*(process\.exit\(\s*0?\s*\))?;?\s*\1$/i.test(c)) return '何もしない node の命令です';
+  return null;
+}
+
+const DEFAULT_GATE_SCRIPTS = ['test', 'verify', 'check', 'lint', 'typecheck', 'build', 'ci'];
+
+// ---------------- 秘密のファイル ----------------
+const SECRET_FILE_RE = /(^|\/)(\.env(\.[^/]*)?|secrets?\.json|credentials\.json|service-account[^/]*\.json|id_(rsa|ed25519|ecdsa)|[^/]*\.(pem|key|p12|pfx|keystore|jks))$/i;
+const SECRET_FILE_OK_RE = /(^|\/)\.env\.(example|sample|template|dist)$|\.(example|sample)\.json$/i;
+const isSecretFile = (rel) => SECRET_FILE_RE.test(rel) && !SECRET_FILE_OK_RE.test(rel);
+
+// ---------------- Python の試験の設定（pyproject.toml・tox.ini・setup.cfg） ----------------
+// 2026-11-14 手抜き番で足した。ファイル全体ではなく「試験・点検に関係する段落」だけを見る
+// （pyproject.toml は依存の追加などでよく変わるので、全体を守ると止まりすぎるため）。
+const PY_GATE_FILES = ['pyproject.toml', 'tox.ini', 'setup.cfg'];
+const PY_GATE_SECTION = {
+  'pyproject.toml': /^tool\.(?:pytest|coverage|mypy|ruff|pyright|pylint|flake8|tox|poe|pdm\.scripts|taskipy)(?:\.|$)|^tool\.hatch\.envs\.[^.]+\.scripts$/,
+  'tox.ini': /^(?:tox|testenv.*|pytest|coverage:.*|flake8|mypy.*|gh-actions)$/,
+  'setup.cfg': /^(?:tool:pytest|coverage:.*|flake8|mypy.*|aliases)$/,
+};
+
+/** 試験・点検に関係する段落だけを取り出す。{ "段落名": "中身（コメント・空行を除く）" } */
+function pyGateSections(name, text) {
+  const want = PY_GATE_SECTION[name];
+  const out = {};
+  if (!want) return out;
+  let cur = null;
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    const h = raw.match(/^\s*\[{1,2}\s*([^\]]+?)\s*\]{1,2}\s*(?:[#;].*)?$/);
+    if (h) { const sec = h[1].replace(/["']/g, ''); cur = want.test(sec) ? sec : null; if (cur && !(cur in out)) out[cur] = ''; continue; }
+    if (!cur) continue;
+    if (/^\s*([#;].*)?$/.test(raw)) continue;
+    out[cur] += raw.replace(/\s+$/, '') + '\n';
+  }
+  return out;
+}
+
+/** key = value（ini の続きの行・TOML の文字列や配列を含む）を素朴に読む。 */
+function pyKeyValues(body) {
+  const kv = [];
+  for (const line of body.split('\n')) {
+    const m = line.match(/^([A-Za-z0-9_.\-"']+)\s*[=:]\s*(.*)$/);
+    if (m) kv.push([m[1].replace(/["']/g, '').toLowerCase(), m[2]]);
+    else if (kv.length && /^\s+\S/.test(line)) kv[kv.length - 1][1] += '\n' + line.trim();
+  }
+  return kv;
+}
+function unquote(v) {
+  const t = v.trim();
+  if (/^\[/.test(t)) return [...t.matchAll(/["']([^"']*)["']/g)].map((x) => x[1]).join(' ');
+  return t.replace(/^(?:"""|'''|"|')|(?:"""|'''|"|')$/g, '').trim();
+}
+const PY_SCRIPT_NAMES = /^(?:test|tests|check|lint|ci|verify|typecheck|cov|coverage)$/;
+
+/**
+ * 段落の中の「何も確かめない・失敗を隠す」設定を探す。[{ section, key, value, reason }]
+ * package.json の noopReason と同じ考え方を、pytest・tox・coverage・各種の命令表に当てる。
+ */
+function pyGateNoop(name, text) {
+  const out = [];
+  const push = (section, key, value, reason) => out.push({ section, key, value: String(value).trim().slice(0, 140), reason });
+  for (const [sec, body] of Object.entries(pyGateSections(name, text))) {
+    for (const [k, rawV] of pyKeyValues(body)) {
+      const v = unquote(rawV);
+      if (/pytest/.test(sec) && k === 'addopts') {
+        if (/(?:^|\s)--(?:collect-only|co)\b/.test(v)) push(sec, k, v, '試験を集めるだけで、走らせない指定（--collect-only）です');
+        if (/--deselect\b|(?:^|\s)--ignore(?:-glob)?[= ]/.test(v)) push(sec, k, v, '試験の一部を外す指定（--ignore・--deselect）です');
+        if (/(?:^|\s)-k\s*["']?\s*not\b/.test(v)) push(sec, k, v, '名前で試験を外す指定（-k "not …"）です');
+        if (/--continue-on-collection-errors\b/.test(v)) push(sec, k, v, '読み込めない試験があっても続ける指定です');
+        if (/--cov-fail-under[= ]0(?:\.0+)?\b/.test(v)) push(sec, k, v, 'カバレッジの合格線が 0 です');
+      }
+      if (/coverage/.test(sec) && k === 'fail_under' && /^0(?:\.0+)?$/.test(v)) push(sec, k, v, 'カバレッジの合格線が 0 です');
+      if (/^(?:tox|testenv)/.test(sec)) {
+        if (k === 'ignore_outcome' && /^true$/i.test(v)) push(sec, k, v, 'tox の ignore_outcome = true で、試験が落ちても成功になります');
+        if (k === 'ignore_errors' && /^true$/i.test(v)) push(sec, k, v, 'tox の ignore_errors = true で、失敗を無視します');
+        if (k === 'commands') {
+          const cmds = rawV.split('\n').map((c) => c.trim()).filter(Boolean);
+          if (!cmds.length) push(sec, k, '', '中身が空');
+          for (const c of cmds) {
+            if (/^-\s*\S/.test(c)) push(sec, k, c, 'tox の命令の頭に「-」が付いていて、失敗しても成功になります');
+            else if (/^python[0-9.]*\s+-c\s+(["'])\s*(?:pass)?\s*\1$/.test(c)) push(sec, k, c, '何もしない python の命令です');
+            else { const why = noopReason(c); if (why) push(sec, k, c, why); }
+          }
+        }
+      }
+      if ((/^tool\.(?:poe|pdm\.scripts|taskipy|hatch)/.test(sec) || sec === 'aliases') && PY_SCRIPT_NAMES.test(k)) {
+        const why = noopReason(v);
+        if (why) push(sec, k, v, why);
+      }
+    }
+  }
+  return out;
+}
+
+// 見つけたものごとの「かんたんな説明（plain）」と「AIにこう頼んでください（ask）」。
+// ブラウザ版（web/index.html）にもそのまま埋め込むので、Node の機能は使わない。
+// {where} は「src/a.js の 12 行目」のような場所に置き換わる。
+// 規則の正規表現（rules/*.json）は同僚が測った物から 1 文字も変えていない。ここは表示だけ。
+
+const ASK_TAIL = '試験を消したり飛ばしたりせず、手抜き番の設定・基準・フックも変えないでください。直したら `tenukiban check` が通ることを確かめてください。';
+
+const EXPLAIN = {
+  // ---- 正直さ：偽の成功 ----
+  'stub-success': { title: 'まだ作っていない所で「成功」を返している', plain: '「あとで作る」の印のすぐそばで成功と返しているので、本当は何もしていなくても、うまくいったように見えます。', ask: '{where}は、まだ作っていない処理で「成功」を返しています。本当に処理を書くか、できるまでは「未実装」と分かる失敗を返すようにしてください。' },
+  'stub-return-literal': { title: '仮の値をそのまま返している', plain: '計算や取得をせずに、作った値を返しています。画面には本物らしく出るので気づきにくいです。', ask: '{where}は仮の値をそのまま返しています。本当の結果を返すか、まだなら「未実装」と分かる失敗にしてください。' },
+  'stub-true': { title: '仮の印のそばで、いつも「はい」と答えている', plain: '判定をせずに常に true（はい）を返しています。確認しているように見えて、何も確認していません。', ask: '{where}は判定をせずに常に true を返しています。本当の判定を書くか、できるまでは false にしてください。' },
+  'check-always-true': { title: 'ログイン・権限の確認が、何も調べずに「通してよい」と答えている', plain: '誰でも通れてしまう状態です。お客様の情報や管理画面が見えてしまうおそれがあります。', ask: '{where}の確認の関数は、何も調べずに常に true を返しています。本当に調べるようにし、分からないときは通さない（false）ようにしてください。' },
+  'check-arrow-true': { title: '確認の関数が、いつも「通してよい」と答えている', plain: '確認の名前が付いているのに中身がありません。誰でも通れてしまいます。', ask: '{where}の確認の関数は常に true を返しています。本当に調べ、分からないときは通さないようにしてください。' },
+  'log-instead-of-action': { title: '「送信しました」などと出すが、送る処理が見当たらない', plain: '画面やログには「済んだ」と出ますが、近くに実際に送る・保存する処理がありません。お客様に届いていないかもしれません。', ask: '{where}は「〜しました」と出していますが、近くに実際の処理が見当たりません。本当に処理してから、その結果を見て成功か失敗かを出し分けるようにしてください。' },
+  'fake-delay': { title: '待つだけで「完了」を出している', plain: '処理しているふりをして、時間がたったら完了と出しています。', ask: '{where}は待つだけで「完了」を出しています。本当の処理の終わりを待って結果を出すようにしてください。' },
+  'mock-in-prod': { title: '本番の所で作り物のデータを返している', plain: '見本のデータ（mock・fake・dummy）が本物として使われています。', ask: '{where}は作り物のデータを返しています。本物のデータを返すようにし、見本を使うなら画面に「見本」と分かる表示を出してください。' },
+  // ---- 正直さ：握りつぶし ----
+  'empty-catch': { title: 'エラーを黙って捨てている（空の catch）', plain: '失敗しても何も起きないので、押しても反応がない・保存されていない、に誰も気づけません。', ask: '{where}の catch が空で、エラーを捨てています。記録を残すか、使う人に「失敗しました」と伝えるようにしてください。わざと無視するなら、なぜ無視してよいかを中にコメントで書いてください。' },
+  'promise-catch-noop': { title: 'エラーを黙って捨てている（.catch(() => {})）', plain: '失敗しても何も起きないので、気づけません。', ask: '{where}は .catch(() => {}) でエラーを捨てています。記録するか、失敗を使う人に伝えるようにしてください。' },
+  'catch-returns-success': { title: '失敗したのに「成功」を返している', plain: 'エラーが起きた時に成功と答えるので、失敗が完全に隠れます。', ask: '{where}はエラーが起きた時に成功を返しています。失敗（ok: false と理由）を返すようにしてください。' },
+  'catch-returns-empty': { title: '失敗したときに「0件」と答えている', plain: '「データが本当に無い」のか「読み込みに失敗した」のか区別がつきません。', ask: '{where}は失敗したときに空のデータを返しています。失敗と分かる値を返すか、エラーを投げ直してください。' },
+  // ---- 正直さ：固定の点数 ----
+  'hardcoded-score': { title: '点数・精度を、測らずに数字で書き込んでいる', plain: '画面の点数が、実際に測った値ではなく固定の数字かもしれません。', ask: '{where}は点数を固定の数字で書いています。実際の値から計算するようにしてください。合格線などの設定値なら、名前に min や threshold を付けてください。' },
+  'score-func-constant': { title: '点数の関数が、いつも同じ数字を返している', plain: '計算しているように見えて、中身は固定の数字です。', ask: '{where}の点数の関数は、いつも同じ数字を返しています。入力から計算するか、まだなら「未計測」と分かる値（null など）を返してください。' },
+  'fixed-percent-claim': { title: '「正答率98%」などを固定で画面に出している', plain: '測った日や件数のない数字は、お客様に誤解を与えるおそれがあります。', ask: '{where}は精度や成功率を固定の数字で出しています。測った値を、測った日と件数と一緒に出すか、出さないようにしてください。' },
+  // ---- 正直さ：偽の認証 ----
+  'demo-user': { title: 'ログインしていない人を、仮の利用者として通している', plain: 'ログインしなくても使えてしまう・誰でも管理者になれてしまうおそれがあります。', ask: '{where}はログインしていない人を仮の利用者（demo-user・admin など）として通しています。ログインが無ければ断る（401）ようにしてください。' },
+  'no-token-admin': { title: '鍵（トークン）が無い人を、管理者として通している', plain: '鍵を持っていない人ほど強い権限になる、逆さまの状態です。', ask: '{where}は鍵が無いときに管理者として通しています。鍵が無ければ断る（401）ようにしてください。' },
+  // ---- 正直さ：Python（2026-11-14 手抜き番で足した） ----
+  'py-def-returns-success': { title: '「送る・保存する」関数が、何もせずに成功を返している（Python）', plain: '関数の名前は「送る」「払う」なのに、中身は「成功」と返すだけです。画面には成功と出ますが、何も起きていません。', ask: '{where}の関数は、何もせずに成功を返しています。本当に処理を書くか、できるまでは raise NotImplementedError にしてください。' },
+  'py-except-pass': { title: 'エラーを黙って捨てている（except: pass）（Python）', plain: '失敗しても何も記録されず、画面にも出ません。お客様のデータが保存されていなくても気づけません。', ask: '{where}は except の中が pass（または continue）だけで、エラーを捨てています。記録（logger.exception）するか、投げ直すか、失敗を伝えるようにしてください。わざと無視するなら、理由をコメントで書いてください。' },
+  'py-except-returns-success': { title: '失敗したのに「成功」を返している（Python）', plain: 'エラーが起きた所で True や ok: True を返しているので、失敗が成功に見えます。', ask: '{where}は except の中で成功を返しています。失敗を返す（{"ok": False, "error": 理由}）か、投げ直すようにしてください。' },
+  'py-except-returns-empty': { title: '失敗したときに「0 件」を返している（Python）', plain: '読み込みに失敗しても「データが 0 件」に見えるので、失敗に気づけません。', ask: '{where}は何でも受け止める except で空の値を返しています。受け止める例外を絞り、失敗は失敗として伝えるようにしてください。' },
+  'py-except-exit-zero': { title: '失敗したのに「成功」で終わっている（Python）', plain: '終了コード 0 は「うまくいった」の合図です。失敗しても 0 で終わると、自動の確認が失敗に気づけません。', ask: '{where}は失敗したときに sys.exit(0) で終わっています。失敗したら 0 以外（sys.exit(1)）で終わり、理由を表示するようにしてください。' },
+  'py-suppress-broad': { title: 'どんなエラーも黙って捨てている（suppress(Exception)）（Python）', plain: '中で何が起きても、無かったことになります。', ask: '{where}は suppress(Exception) でエラーを捨てています。捨ててよい例外だけに絞るか、記録するようにしてください。' },
+  'py-hardcoded-score': { title: '点数・精度を数字で書き込んでいる（Python）', plain: '測っていない点数が、本物のように表示されているおそれがあります。', ask: '{where}は点数・精度を固定の数字で書いています。実際に計算した値を出すようにしてください。合格線などの設定なら、名前に MIN_ や THRESHOLD を付けてください。' },
+  'py-score-func-constant': { title: '点数を計算する関数が、いつも同じ数字を返している（Python）', plain: '何を入れても同じ点数になります。', ask: '{where}の関数は、いつも同じ数字を返しています。入力から計算するか、まだなら NotImplementedError にしてください。' },
+  'py-stub-return-literal': { title: '「あとで」の印のそばで、決まった値を返している（Python）', plain: '本物らしい値が画面に出ますが、計算も取得もしていません。', ask: '{where}は「あとで」「仮」の印のそばで決まった値を返しています。本当の結果を返すか、まだなら raise NotImplementedError にしてください。' },
+  'py-assert-trivial': { title: 'いつでも通る試験（assert True など）（Python）', plain: '試験の形はありますが、何も確かめていません。「試験が通った」と言われても安心できません。', ask: '{where}の試験は、いつでも通る確かめ（assert True・… or True など）になっています。本当の結果を確かめる試験に直してください。' },
+  'py-auth-always-true': { title: 'ログイン・権限の確認が、何も調べずに「通してよい」と答えている（Python）', plain: '誰でも通れてしまう状態です。', ask: '{where}の確認の関数は、何も調べずに常に True を返しています。本当に調べ、分からないときは False を返すようにしてください。' },
+  'py-auth-lambda-true': { title: '確認の関数が、いつも「通してよい」と答えている（Python）', plain: '確認の名前が付いているのに中身がありません。', ask: '{where}の確認の関数は常に True を返しています。本当に調べるようにしてください。' },
+  'py-print-instead-of-action': { title: '「送信しました」などと出すが、送る処理が見当たらない（Python）', plain: '画面やログには「済んだ」と出ますが、近くに実際の処理がありません。', ask: '{where}は「〜しました」と出していますが、近くに実際の処理が見当たりません。本当に処理してから、その結果を見て成功か失敗かを出し分けるようにしてください。' },
+  'py-fake-delay': { title: '待つだけで「完了」にしている（Python）', plain: '処理しているふりをして、時間がたったら完了にしています。', ask: '{where}は待つだけで「完了」にしています。本当の処理の終わりを待って結果を出すようにしてください。' },
+  'py-default-admin': { title: '役割が分からない人を、管理者として通している（Python）', plain: '役割の情報が無いと管理者になる、逆さまの状態です。', ask: '{where}は役割が分からないときに管理者として通しています。分からなければ断る（401・403）ようにしてください。' },
+  'py-no-token-admin': { title: '鍵（トークン）が無い人を、管理者として通している（Python）', plain: '鍵を持っていない人ほど強い権限になる、逆さまの状態です。', ask: '{where}は鍵が無いときに管理者として通しています。鍵が無ければ断る（401）ようにしてください。' },
+  'py-mock-in-prod': { title: '本番の所で作り物のデータを返している（Python）', plain: '見本のデータ（mock・fake・dummy）が本物として使われています。', ask: '{where}は作り物のデータを返しています。本物のデータを返すようにし、見本を使うなら画面に「見本」と分かる表示を出してください。' },
+  // ---- 誇大表現（日本語） ----
+  'ja-kanpeki': { title: '「完璧」と言い切っている', plain: 'AI の出す物には間違いがありえます。言い切ると、お客様の苦情や信用の問題になりえます。', ask: '{where}で「完璧」と言い切っています。できる範囲を具体的に書く言い方に直してください（例：多くの場合に使える下書きを作ります。送る前に確認してください）。' },
+  'ja-100pct': { title: '「100%安全」などと言い切っている', plain: '100% は誰にも保証できません。広告の表示として問題になるおそれもあります。', ask: '{where}で「100%〜」と言い切っています。測った結果を条件つきで書く言い方に直してください（例：試験30問ではすべて正解）。' },
+  'ja-zettai': { title: '「絶対に〜」と言い切っている', plain: '起きにくいことと、起きないことは違います。', ask: '{where}で「絶対に〜」と言い切っています。起こりにくさと、起きたときの対応を書く言い方に直してください。' },
+  'ja-kanzen': { title: '「完全自動」などと言い切っている', plain: '人の確認が要る所が隠れてしまいます。', ask: '{where}で「完全自動」などと言い切っています。人が確認する所を書く言い方に直してください（例：AIが下書きを作り、送るのは人）。' },
+  'ja-kanarazu': { title: '「必ず儲かる」などと成果を約束している', plain: '成果の約束は、お客様との揉めごとの元になります。', ask: '{where}で成果を約束しています。成果は約束せず、事例や条件を書く言い方に直してください。' },
+  'ja-no1': { title: '「業界No.1」「日本初」などと根拠なく比べている', plain: '比べた根拠（調べた日・方法・出典）が無いと、表示の問題になりえます。', ask: '{where}で「No.1・日本初」などと書いています。根拠が無いなら消してください。' },
+  'ja-zero-miss': { title: '「ミスは一切ありません」と言い切っている', plain: '試した範囲で0件でも、これからも0件とは言えません。', ask: '{where}で「ミスは一切ない」と言い切っています。測った範囲を書く言い方に直してください（例：試験30問で誤り0件）。' },
+  'ja-banzen': { title: '「セキュリティは万全」と言い切っている', plain: '何をしているかが書かれていないと、言葉だけの安心になります。', ask: '{where}で「万全」と言い切っています。実際にしている対策を具体的に書く言い方に直してください。' },
+  'ja-hosho': { title: '成果・効果を「保証」すると書いている', plain: '保証すると書くと、守れなかったときに責任を問われます。', ask: '{where}で成果を保証すると書いています。保証しない言い方に直してください。返金などの条件は、規約に正確に書いてください。' },
+  'ja-iikiri': { title: '「確実に儲かる」「最強」などと言い切っている', plain: '言い切りは誤解と苦情の元になります。', ask: '{where}で「確実に・最強・誰でも月○万」などと言い切っています。事例・条件・測った結果を書く言い方に直してください。' },
+  // ---- 誇大表現（英語） ----
+  'en-100pct': { title: '英語で「100% secure」などと言い切っている', plain: '海外のお客様向けの文でも、100% は保証できません。', ask: '{where}で「100% secure/accurate」などと書いています。測った内容と条件を書く言い方に直してください。' },
+  'en-guarantee': { title: '英語で成果を「guaranteed」と約束している', plain: '成果の約束は揉めごとの元になります。', ask: '{where}で成果を保証すると書いています（guaranteed など）。保証しない言い方に直し、返金の条件は規約に書いてください。' },
+  'en-never-fails': { title: '英語で「never fails」などと言い切っている', plain: '失敗しない仕組みはありません。', ask: '{where}で「never fails / never makes mistakes」と書いています。試した結果と、間違えたときの対応を書く言い方に直してください。' },
+  'en-bulletproof': { title: '英語で「unhackable」「bank-grade」などと言い切っている', plain: '言葉だけの安心で、実際の対策が分かりません。', ask: '{where}で「unhackable / bank-grade」などと書いています。実際の対策を具体的に書く言い方に直してください。' },
+  'en-zero': { title: '英語で「zero bugs」などと言い切っている', plain: '試した範囲で0件でも、0件とは言い切れません。', ask: '{where}で「zero bugs / zero risk」と書いています。測った結果と範囲を書く言い方に直してください。' },
+  'en-fully-autonomous': { title: '英語で「fully autonomous」と言い切っている', plain: '人の確認が要る所が隠れます。', ask: '{where}で「fully autonomous / fully automated」と書いています。人の確認が要る所を書く言い方に直してください。' },
+  'en-number-one': { title: '英語で「#1」「world\'s first」などと根拠なく比べている', plain: '根拠が無いと表示の問題になりえます。', ask: '{where}で「#1 / world\'s first」などと書いています。根拠が無いなら消すか、出典と日付を書いてください。' },
+  'en-always': { title: '英語で「always accurate」などと言い切っている', plain: 'いつも正しい仕組みはありません。', ask: '{where}で「always accurate / rock-solid」などと書いています。測った結果と限界を書く言い方に直してください。' },
+  // ---- 歯止め（負債の数） ----
+  'debt:bigFiles': { title: '大きすぎるファイルが増えた', plain: '1つのファイルが長すぎると、AI も人も直すときに壊しやすくなります。', ask: '{where}のファイルが長くなりすぎました。動きを変えずに、意味のまとまりごとに分けてください。' },
+  'debt:asAny': { title: '型の確かめを逃げる書き方（as any）が増えた', plain: 'TypeScript の安全装置を外す書き方です。増えると、あとで壊れても気づけません。', ask: '{where}で as any が増えました。正しい型を書いて、as any を使わないように直してください。' },
+  'debt:tsIgnore': { title: '型の確かめを止める印（@ts-ignore）が増えた', plain: 'エラーを直さずに隠す印です。', ask: '{where}で @ts-ignore / @ts-nocheck が増えました。隠さずに、型のエラーそのものを直してください。' },
+  'debt:lintDisable': { title: 'リンター（自動の点検）を止める印が増えた', plain: '点検で見つかった問題を、直さずに黙らせています。', ask: '{where}で eslint-disable が増えました。点検を止めずに、指摘された問題を直してください。' },
+  'debt:emptyCatch': { title: 'エラーを捨てる空の catch が増えた', plain: '失敗しても誰も気づけない所が増えています。', ask: '{where}で空の catch が増えました。記録するか、失敗を使う人に伝えるようにしてください。' },
+  'debt:todo': { title: '「あとでやる（TODO）」が増えた', plain: 'やり残しが増えています。「できました」と言われても、中に残っているかもしれません。', ask: '{where}で TODO / FIXME が増えました。やり残しを片付けるか、できていないことを私に正直に報告してください。' },
+  'debt:waivers': { title: '手抜き番の「免除」コメントが増えた', plain: 'AI が手抜き番に止められないよう、自分で免除を書いた可能性があります。', ask: '{where}で tenukiban-allow（免除）が増えました。免除せずに、指摘された問題を直してください。どうしても免除が要るなら、理由を私に説明してください。' },
+  'debt:pyBareExcept': { title: '何でも受け止める except: が増えた（Python）', plain: 'どんな失敗も（打ち間違いさえ）受け止めてしまう書き方です。', ask: '{where}で except: が増えました。受け止める例外を絞って（例: except ValueError:）、失敗を記録するようにしてください。' },
+  'debt:pyNoqa': { title: '点検を止める印（# noqa）が増えた（Python）', plain: '点検で見つかった問題を、直さずに黙らせています。', ask: '{where}で # noqa が増えました。点検を止めずに、指摘された問題を直してください。' },
+  'debt:pyTypeIgnore': { title: '型の確かめを止める印（# type: ignore）が増えた（Python）', plain: 'エラーを直さずに隠す印です。', ask: '{where}で # type: ignore が増えました。隠さずに、型のエラーそのものを直してください。' },
+  'debt:pyNoCover': { title: 'カバレッジから外す印（# pragma: no cover）が増えた（Python）', plain: '試験で通っていない所を、数えないことにしています。', ask: '{where}で # pragma: no cover が増えました。外さずに、その所を確かめる試験を足してください。' },
+  // ---- 試験（テスト）の数 ----
+  'tests:testFiles': { title: '試験（テスト）のファイルが減った', plain: 'AI が、通らない試験を消して「通った」ことにした可能性があります。', ask: '試験のファイルが減っています（{where}）。消した試験を元に戻し、試験を通すようにコードの方を直してください。' },
+  'tests:testCases': { title: '試験（テスト）の数が減った', plain: '確かめる項目が減ると、壊れても気づけません。', ask: '試験の数が減っています（{where}）。減らした試験を元に戻し、コードの方を直してください。' },
+  'tests:skipped': { title: '試験を飛ばす印（skip・only など）が増えた', plain: '試験を「飛ばす」と、通っていないのに通ったように見えます。', ask: '試験を飛ばす印（.skip / .only / xit、Python の @pytest.mark.skip / xfail / pytest.skip() / @unittest.skip など）が増えています（{where}）。印を外し、試験が通るようにコードの方を直してください。' },
+  // ---- 見張りの穴（AI が見張りそのものを外す） ----
+  'guard:gate-script-removed': { title: '確認の命令（npm test など）が消された', plain: '「試験を通す」の中身が無くなると、何を作っても通ってしまいます。', ask: 'package.json の確認の命令（{where}）が消されています。元に戻してください。消す必要があった理由があれば、直す前に私に説明してください。' },
+  'guard:gate-script-noop': { title: '確認の命令が、何もしない中身になっている', plain: '「echo ok」「exit 0」「|| true」のように、試験が落ちても必ず通る形です。', ask: 'package.json の確認の命令（{where}）が、何も確かめない中身になっています。本当に試験を走らせる命令に戻してください。' },
+  'guard:py-gate-noop': { title: 'Python の試験の設定が、何もしない・失敗を隠す中身になっている', plain: 'pyproject.toml・tox.ini・setup.cfg の試験の設定で、試験を外す・失敗しても成功にする指定があります（例: tox の「- pytest」、--deselect、fail_under = 0）。', ask: '{where}の試験の設定が、試験を外す・失敗を隠す中身になっています。本当に全部の試験を走らせ、失敗は失敗として出る設定に戻してください。' },
+  'guard:py-gate-changed': { title: 'Python の試験・点検の設定が書き換えられた', plain: 'pyproject.toml などの、試験・点検（pytest・coverage・tox・mypy・ruff など）の段落が変わりました。試験の範囲や合格線を変えると、悪いコードでも通るようになります。', ask: '{where}の試験・点検の設定が書き換えられています。元に戻し、試験はコードの方を直して通してください。設定を変える必要があるなら、理由を私に説明してください。' },
+  'guard:py-gate-removed': { title: 'Python の試験・点検の設定が消された', plain: 'pyproject.toml などから、試験・点検の段落が無くなりました。点検の仕組みそのものが外された可能性があります。', ask: '{where}の試験・点検の設定が消されています。元に戻してください。' },
+  'guard:gate-script-changed': { title: '確認の命令（npm test など）が書き換えられた', plain: '試験の走らせ方が変わりました。意図した変更か、人が確かめる必要があります。', ask: 'package.json の確認の命令（{where}）が変わっています。なぜ変えたのか説明してください。必要が無ければ元に戻してください。' },
+  'guard:protected-changed': { title: '見張りや試験の設定ファイルが書き換えられた', plain: '試験の範囲や点検の決まりを変えると、悪いコードでも通るようにできてしまいます。', ask: '{where}（見張りや試験の設定）が変わっています。なぜ変えたのか説明してください。必要が無ければ元に戻してください。' },
+  'guard:protected-removed': { title: '見張りや試験の設定ファイルが消された', plain: '点検の仕組みそのものが外された可能性があります。', ask: '{where}が消されています。元に戻してください。' },
+  'guard:protected-added': { title: '試験や点検の設定ファイルが新しく増えた', plain: '新しい設定で試験の一部を外せることがあります。人が確かめる必要があります。', ask: '{where}が新しく作られています。何のための設定か、試験を外していないかを説明してください。' },
+  'guard:hook-removed': { title: '手抜き番の自動チェック（フック）が外された', plain: 'AI が作業のたびに手抜き番を通す仕組みが外されています。', ask: '.claude/settings.json から手抜き番のフックが外されています（{where}）。元に戻してください。' },
+  'guard:marker-removed': { title: 'AI への指示書から、手抜き番の決まりが消された', plain: 'CLAUDE.md / AGENTS.md に書いた「終わる前に手抜き番を通す」決まりが消えています。', ask: '{where}から手抜き番の決まり（tenukiban の段落）が消えています。元に戻してください。' },
+  'guard:forbidden-tracked': { title: '秘密のファイル（.env・鍵など）が git に入っている', plain: 'GitHub などに上げると、パスワードや鍵が他人に見えてしまいます。', ask: '{where}は秘密を含むファイルで、git に登録されています。git の登録から外し（git rm --cached）、.gitignore に足してください。中の鍵は、もう漏れたものとして作り直す必要があるか私に教えてください。' },
+  'guard:node-modules-tracked': { title: 'node_modules が git に入っている', plain: '外から取ってきた部品の置き場が登録されていて、書き換えに気づきにくくなります。', ask: 'node_modules が git に登録されています（{where}）。登録から外し、.gitignore に足してください。' },
+  'guard:node-modules-edited': { title: '外から入れた部品（node_modules）の中身が直接書き換えられた', plain: '自分のコードを直さずに、部品の方をいじって通した可能性があります。作り直すと元に戻り、また壊れます。', ask: 'node_modules の中（{where}）が書き換えられています。部品の中は触らず、自分のコードの方で直してください。直したら npm ci で部品を入れ直してください。' },
+  'guard:deps-changed': { title: '部品（依存）が入れ替わった', plain: 'npm install などで部品が変わりました。意図した変更なら、人が accept で記録してください。', ask: '部品（依存）が変わっています（{where}）。何を、なぜ入れたのかを説明してください。' },
+  'guard:test-weakened-diff': { title: '変更の中で、試験を飛ばす印が足された', plain: 'この変更で、試験を飛ばす書き方（.skip など）が足されています。', ask: '{where}で試験を飛ばす印が足されています。印を外し、コードの方を直してください。' },
+  'guard:test-deleted-diff': { title: '変更の中で、試験のファイルが消された', plain: 'この変更で試験のファイルが消されています。', ask: '{where}の試験が消されています。元に戻し、コードの方を直してください。' },
+  'guard:baseline-tampered': { title: '手抜き番の基準が、記録なしに緩められた', plain: '「前より悪くしない」の基準を、AI が書き換えて通そうとした可能性があります。', ask: '手抜き番の基準ファイル（.tenukiban/baseline.json）が書き換えられています（{where}）。基準ファイルを元に戻し、コードの方を直してください。基準のファイルは触らないでください。' },
+  'guard:baseline-missing': { title: '手抜き番の基準ファイルが消された', plain: '基準を消すと「前より悪くなったか」が比べられなくなります。', ask: '手抜き番の基準ファイル（.tenukiban/baseline.json）が消されています。元に戻してください（git を使っていれば git checkout で戻せます）。' },
+  'guard:anchor-missing': { title: '手抜き番の控え（PCの別の場所）が見つからない', plain: '基準の控えが消えたか、フォルダを別のPCに移しました。移しただけなら、人が accept で控えを作り直してください。', ask: '手抜き番の控えが見つかりません。控えや基準のファイルを消したり書き換えたりしていないか、私に正直に教えてください。' },
+  'guard:accept-noninteractive': { title: '画面の確認なしで基準が緩められた記録がある', plain: '人が画面で確かめずに基準を緩めました。AI が自分で緩めた可能性があります。', ask: '手抜き番の基準を、画面の確認なしで緩めた記録があります（{where}）。あなた（AI）が実行したのなら、正直にそう報告してください。' },
+};
+
+function explainFor(id) {
+  return EXPLAIN[id] || { title: id, plain: '説明はまだありません。', ask: '{where}の指摘を直してください。' };
+}
+
+function askText(id, where) {
+  const e = explainFor(id);
+  return `${e.ask.split('{where}').join(where || '')}${ASK_TAIL}`;
+}
+
+// ブラウザ版の画面の動き。build.mjs が scan-core・explain・規則と一緒に index.html の中へ埋め込む。
+// ⚠ 通信はしない（fetch・XMLHttpRequest・画像の読み込みなどを使わない）。ページの CSP でも禁止している。
+(function () {
+  'use strict';
+  var EXCLUDE_DIRS = ['node_modules', 'dist', 'build', 'out', 'coverage', '.git', '.next', '.tenukiban', '.hadome', 'vendor', 'data', 'backups', 'tmp', '.venv', 'venv', '__pycache__', '.tox', '.nox', '.mypy_cache', '.pytest_cache', '.ruff_cache', 'site-packages'];
+  var EXTS = ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.html', '.py'];
+  var NEVER_READ = /(^|\/)(\.env[^/]*|\.system_key[^/]*|[^/]*\.(pem|key|p12|pfx))$/i;
+  var MAX_BYTES = 1024 * 1024;
+  var RULES = compileRules(RULE_SETS, {});
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function ext(p) { var i = p.lastIndexOf('.'); return i < 0 ? '' : p.slice(i).toLowerCase(); }
+
+  /** 上の 1 段（選んだフォルダの名前）を外した、フォルダの中での場所。 */
+  function relPath(p) { var s = p.replace(/\\/g, '/'); var i = s.indexOf('/'); return i < 0 ? s : s.slice(i + 1); }
+
+  function classify(rel) {
+    var parts = rel.split('/');
+    for (var i = 0; i < parts.length - 1; i++) if (EXCLUDE_DIRS.indexOf(parts[i]) >= 0) return { skip: true, why: parts[i] };
+    if (NEVER_READ.test(rel)) return { skip: true, secret: true };
+    if (/\.min\.js$/i.test(rel)) return { skip: true, why: 'min' };
+    if (parts[parts.length - 1] === 'package.json' && parts.length === 1) return { pkg: true };
+    if (parts.length === 1 && PY_GATE_FILES.indexOf(parts[0]) >= 0) return { pyGate: parts[0] };
+    if (EXTS.indexOf(ext(rel)) < 0) return { skip: true, why: 'ext' };
+    return { read: true };
+  }
+
+  function readText(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result)); };
+      r.onerror = function () { reject(r.error); };
+      r.readAsText(file);
+    });
+  }
+
+  // ---- フォルダを読む（ファイルの選択・ドラッグの両方） ----
+  function entriesToFiles(entries) {
+    var out = [];
+    function walk(entry, prefix) {
+      return new Promise(function (resolve) {
+        if (entry.isFile) {
+          entry.file(function (f) { out.push({ file: f, path: prefix + entry.name }); resolve(); }, function () { resolve(); });
+        } else if (entry.isDirectory) {
+          if (EXCLUDE_DIRS.indexOf(entry.name) >= 0) { out.push({ skippedDir: prefix + entry.name }); resolve(); return; }
+          var reader = entry.createReader();
+          var all = [];
+          (function more() {
+            reader.readEntries(function (batch) {
+              if (!batch.length) { Promise.all(all.map(function (e) { return walk(e, prefix + entry.name + '/'); })).then(function () { resolve(); }); return; }
+              all = all.concat(Array.prototype.slice.call(batch));
+              more();
+            }, function () { resolve(); });
+          })();
+        } else resolve();
+      });
+    }
+    return Promise.all(entries.map(function (e) { return walk(e, ''); })).then(function () { return out; });
+  }
+
+  async function analyze(items) {
+    var report = { read: 0, skippedSecret: [], skippedOther: 0, findings: [], tests: { files: 0, cases: 0, skipped: [] }, scripts: null, folder: '' };
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (it.skippedDir) { report.skippedOther++; continue; }
+      var full = it.path || it.file.webkitRelativePath || it.file.name;
+      if (!report.folder && full.indexOf('/') > 0) report.folder = full.split('/')[0];
+      var rel = full.indexOf('/') > 0 ? relPath(full) : full;
+      var c = classify(rel);
+      if (c.secret) { report.skippedSecret.push(rel); continue; }
+      if (c.skip) { report.skippedOther++; continue; }
+      if (it.file.size > MAX_BYTES) { report.skippedOther++; continue; }
+      var text;
+      try { text = await readText(it.file); } catch (e) { report.skippedOther++; continue; } // 読めないファイルは数だけ数える（下に件数を出す）
+      if (c.pkg) {
+        try {
+          var j = JSON.parse(text);
+          report.scripts = {};
+          DEFAULT_GATE_SCRIPTS.forEach(function (n) { if (j.scripts && Object.prototype.hasOwnProperty.call(j.scripts, n)) report.scripts[n] = String(j.scripts[n]); });
+        } catch (e) { report.scripts = { _error: 'package.json が JSON として読めません' }; }
+        continue;
+      }
+      if (c.pyGate) {
+        pyGateNoop(c.pyGate, text).forEach(function (n) {
+          report.findings.push({ id: 'guard:py-gate-noop', group: '見張りの穴', where: c.pyGate + ' の [' + n.section + '] ' + n.key, text: n.value + '（' + n.reason + '）' });
+        });
+        continue;
+      }
+      report.read++;
+      var isTest = isTestPath(rel);
+      scanText(text, RULES, { isTest: isTest, ext: ext(rel) }).forEach(function (h) {
+        report.findings.push({ id: h.rule.id, group: '正直さ', where: rel + ' ' + h.line + '行目', text: h.text });
+      });
+      if (isTest && /\.([cm]?[jt]sx?|py)$/i.test(rel)) {
+        var t = countTests(text, rel);
+        report.tests.files++;
+        report.tests.cases += t.cases;
+        t.skippedLines.forEach(function (l) { report.tests.skipped.push(rel + ' ' + l + '行目'); });
+      }
+    }
+    if (report.tests.skipped.length) report.findings.push({ id: 'tests:skipped', title: '試験を飛ばす印（skip・only など）がある', group: '試験の数', where: report.tests.skipped.slice(0, 5).join('、') + (report.tests.skipped.length > 5 ? ' ほか' + (report.tests.skipped.length - 5) + '件' : '') });
+    if (report.scripts && !report.scripts._error) {
+      Object.keys(report.scripts).forEach(function (n) {
+        var why = noopReason(report.scripts[n]);
+        if (why) report.findings.push({ id: 'guard:gate-script-noop', group: '見張りの穴', where: 'package.json の "' + n + '"', text: report.scripts[n] + '（' + why + '）' });
+      });
+    }
+    return report;
+  }
+
+  // ---- 表示 ----
+  function copy(text, btn) {
+    var done = function () { btn.textContent = 'コピーしました'; setTimeout(function () { btn.textContent = 'AIへの頼み方をコピー'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { fallback(); });
+    else fallback();
+    function fallback() {
+      var ta = el('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { btn.textContent = 'コピーできません。文を選んでコピーしてください'; }
+      document.body.removeChild(ta);
+    }
+  }
+
+  function render(rep) {
+    var out = $('result');
+    out.textContent = '';
+    out.hidden = false;
+    var head = el('div', 'summary ' + (rep.findings.length ? 'bad' : 'good'));
+    head.appendChild(el('h2', null, rep.findings.length ? '見つかったもの：' + rep.findings.length + ' 件' : '見つかったもの：0 件'));
+    var meta = 'フォルダ「' + (rep.folder || '（名前なし）') + '」の ' + rep.read + ' ファイルを読みました（JS・TS・HTML・Python など）。';
+    if (rep.tests.files) meta += ' 試験のファイル ' + rep.tests.files + '・試験の数 ' + rep.tests.cases + '。';
+    head.appendChild(el('p', null, meta));
+    if (!rep.findings.length) head.appendChild(el('p', null, 'ただし、手抜き番が見つけられるのは一部です。0 件でも「問題がない」とは言えません。'));
+    if (rep.read === 0) head.appendChild(el('p', 'warn', '読めたファイルが 0 件でした。JS・TS・HTML・Python などのファイルが入ったフォルダを選んでください（0 件で「問題なし」とは言いません）。'));
+    out.appendChild(head);
+
+    if (rep.skippedSecret.length) {
+      var s = el('div', 'notice');
+      s.appendChild(el('h3', null, '秘密らしいファイルがありました（中身は読んでいません）'));
+      s.appendChild(el('p', null, rep.skippedSecret.slice(0, 10).join('、') + (rep.skippedSecret.length > 10 ? ' ほか' : '') + '。このフォルダを人に渡す・GitHub に上げる前に、入れてよいか確かめてください。'));
+      out.appendChild(s);
+    }
+
+    var all = [];
+    rep.findings.forEach(function (f, i) {
+      var e = explainFor(f.id);
+      var ask = askText(f.id, f.where);
+      all.push((i + 1) + '. ' + ask);
+      var card = el('article', 'card');
+      card.appendChild(el('h3', null, '[' + (i + 1) + '] ' + (f.title || e.title) + '（' + f.group + '）'));
+      card.appendChild(el('p', 'where', '場所: ' + f.where));
+      if (f.text) card.appendChild(el('pre', 'code', f.text));
+      card.appendChild(el('p', 'plain', 'かんたんに言うと：' + e.plain));
+      var box = el('div', 'ask');
+      box.appendChild(el('p', 'ask-label', 'AIにこう頼んでください'));
+      box.appendChild(el('p', 'ask-text', ask));
+      var b = el('button', 'copy', 'AIへの頼み方をコピー');
+      b.type = 'button';
+      b.addEventListener('click', function () { copy(ask, b); });
+      box.appendChild(b);
+      card.appendChild(box);
+      out.appendChild(card);
+    });
+    if (all.length > 1) {
+      var allBtn = el('button', 'copy all', 'まとめてコピー（' + all.length + ' 件）');
+      allBtn.type = 'button';
+      allBtn.addEventListener('click', function () { copy('次の点を直してください。\n' + all.join('\n'), allBtn); });
+      out.insertBefore(allBtn, out.children[1] || null);
+    }
+    out.appendChild(el('p', 'foot', '読まなかったファイル：秘密らしいもの ' + rep.skippedSecret.length + ' 件・対象外（node_modules・画像・大きすぎるもの など）' + rep.skippedOther + ' 件。'));
+  }
+
+  function run(items) {
+    $('status').textContent = '読んでいます…（このパソコンの中だけで読んでいます）';
+    analyze(items).then(function (rep) { render(rep); $('status').textContent = ''; }, function (e) { $('status').textContent = '止まりました：' + e.message; });
+  }
+
+  $('picker').addEventListener('change', function (ev) {
+    var files = Array.prototype.slice.call(ev.target.files || []);
+    run(files.map(function (f) { return { file: f, path: f.webkitRelativePath || f.name }; }));
+  });
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function () { drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var items = Array.prototype.slice.call(e.dataTransfer.items || []);
+    var entries = items.map(function (it) { return it.webkitGetAsEntry ? it.webkitGetAsEntry() : null; }).filter(Boolean);
+    if (!entries.length) { $('status').textContent = 'フォルダを読めませんでした。上の「フォルダを選ぶ」を使ってください。'; return; }
+    entriesToFiles(entries).then(run);
+  });
+})();
+</script>
+</body>
+</html>
