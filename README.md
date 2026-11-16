@@ -118,6 +118,8 @@ npm run build:web  ブラウザ版を作り直す（node web/build.mjs --check �
 
 ## English (short)
 
+*This English section was translated with AI.*
+
 **tenukiban** (手抜き番, "the shortcut watchman") is a zero-dependency Node CLI (plus an offline browser page) that stops AI coding agents from quietly making code worse or faking success. Provided free of charge (for now) by HARVEST, Japan. Contact: garageten.info@gmail.com.
 
 - **Ratchet** that can't erase past best: counts of swallowed errors, TODOs, type escapes, skipped tests and honesty findings (per file, per rule) may only go down. Loosening requires a human `accept --reason`, which is recorded and shown every time. Baseline tampering is detected against a copy outside the project and against git.

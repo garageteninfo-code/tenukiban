@@ -2,7 +2,7 @@
 
 tenukiban (手抜き番) — a tool that finds shortcuts and fake success in AI-written code (free prototype).
 
-This English text is a translation. If this English version and the Japanese version differ, the Japanese version ([利用条件.md](利用条件.md)) is the original.
+This English text was translated with AI and has not been checked by a native speaker. If this English version and the Japanese version differ, the Japanese version ([利用条件.md](利用条件.md)) is the original.
 
 ## 1. What this tool does
 
